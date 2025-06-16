@@ -1,0 +1,22 @@
+{
+  "dataset_info": {
+    "total_traces": 2999,
+    "websites": [
+      "https://cse.buet.ac.bd/moodle/",
+      "https://google.com",
+      "https://prothomalo.com"
+    ],
+    "train_size": 2399,
+    "test_size": 600
+  },
+  "results": {
+    "Basic CNN": {
+      "accuracy": 0.8783333333333333
+    },
+    "Complex CNN": {
+      "accuracy": 0.8883333333333333
+    }
+  },
+  "best_model": "Complex CNN",
+  "best_accuracy": 0.8883333333333333
+}
