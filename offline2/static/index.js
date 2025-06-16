@@ -197,6 +197,79 @@ function app() {
       }
     },
     
+    // Collect advanced trace data using multiple techniques
+    async collectAdvancedTrace() {
+        this.isCollecting = true;
+        this.status = "Collecting advanced trace data... This will take about 10 seconds.";
+        this.statusIsError = false;
+        this.showingTraces = true;
+
+        try {
+            // Create advanced worker
+            let worker = new Worker("advanced_worker.js");
+
+            // Start advanced trace collection
+            const result = await new Promise((resolve) => {
+                worker.onmessage = (e) => resolve(e.data);
+                worker.postMessage({
+                    command: "advanced_sweep",
+                    technique: "combined"  // Use combined advanced techniques
+                });
+            });
+
+            if (!result.success) {
+                throw new Error(result.error);
+            }
+
+            // Send advanced trace data to backend
+            const response = await fetch('/collect_advanced_trace', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    trace: result.data,
+                    technique: result.technique,
+                    metadata: result.metadata,
+                    timestamp: result.timestamp
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+
+            const backendResult = await response.json();
+            
+            // Add advanced heatmap to local collection
+            this.heatmaps.push({
+                path: backendResult.heatmap_path,
+                timestamp: result.timestamp,
+                dataPoints: Array.isArray(result.data) ? result.data.length : "Advanced",
+                technique: result.technique
+            });
+            
+            // Store advanced trace data locally
+            this.traceData.push({
+                data: result.data,
+                timestamp: result.timestamp,
+                technique: result.technique,
+                metadata: result.metadata
+            });
+
+            this.status = `Advanced trace collection complete! Used technique: ${result.technique}`;
+            
+            // Terminate worker
+            worker.terminate();
+        } catch (error) {
+            console.error("Error collecting advanced trace data:", error);
+            this.status = `Error: ${error.message}`;
+            this.statusIsError = true;
+        } finally {
+            this.isCollecting = false;
+        }
+    },
+    
     // Fetch existing results when page loads
     async fetchResults() {
         try {
