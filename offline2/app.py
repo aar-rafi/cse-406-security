@@ -7,14 +7,211 @@ import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime
 import uuid
+import torch
+import torch.nn as nn
+from sklearn.preprocessing import StandardScaler
 
 app = Flask(__name__)
 
 stored_traces = []
 stored_heatmaps = []
 
+# ML Model Configuration
+MODEL_PATH = "saved_models/complex_cnn_model.pth"
+INPUT_SIZE = 1000
+HIDDEN_SIZE = 128
+WEBSITES = [
+    "https://cse.buet.ac.bd/moodle/",
+    "https://google.com", 
+    "https://prothomalo.com"
+]
+
+# Global variables for ML model
+ml_model = None
+scaler = None
+
+# Global statistics calculated from the training dataset
+# These are the exact mean and std values used during training
+GLOBAL_MEAN = None
+GLOBAL_STD = None
+
 # Ensure results directory exists
 os.makedirs('results', exist_ok=True)
+
+class ComplexFingerprintClassifier(nn.Module):
+    """A more complex neural network model for website fingerprinting classification."""
+    
+    def __init__(self, input_size, hidden_size, num_classes):
+        super(ComplexFingerprintClassifier, self).__init__()
+        
+        # 1D Convolutional layers with batch normalization
+        self.conv1 = nn.Conv1d(in_channels=1, out_channels=32, kernel_size=5, stride=1, padding=2)
+        self.bn1 = nn.BatchNorm1d(32)
+        self.pool1 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        self.conv2 = nn.Conv1d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm1d(64)
+        self.pool2 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        self.conv3 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm1d(128)
+        self.pool3 = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Calculate the size after convolutions and pooling
+        conv_output_size = input_size // 8  # After three 2x pooling operations
+        self.fc_input_size = conv_output_size * 128
+        
+        # Fully connected layers
+        self.fc1 = nn.Linear(self.fc_input_size, hidden_size*2)
+        self.bn4 = nn.BatchNorm1d(hidden_size*2)
+        self.dropout1 = nn.Dropout(0.5)
+        
+        self.fc2 = nn.Linear(hidden_size*2, hidden_size)
+        self.bn5 = nn.BatchNorm1d(hidden_size)
+        self.dropout2 = nn.Dropout(0.3)
+        
+        self.fc3 = nn.Linear(hidden_size, num_classes)
+        
+        # Activation functions
+        self.relu = nn.ReLU()
+        
+    def forward(self, x):
+        # Reshape for 1D convolution: (batch_size, 1, input_size)
+        x = x.unsqueeze(1)
+        
+        # Convolutional layers
+        x = self.relu(self.bn1(self.conv1(x)))
+        x = self.pool1(x)
+        x = self.relu(self.bn2(self.conv2(x)))
+        x = self.pool2(x)
+        x = self.relu(self.bn3(self.conv3(x)))
+        x = self.pool3(x)
+        
+        # Flatten for fully connected layers
+        x = x.view(-1, self.fc_input_size)
+        
+        # Fully connected layers
+        x = self.relu(self.bn4(self.fc1(x)))
+        x = self.dropout1(x)
+        x = self.relu(self.bn5(self.fc2(x)))
+        x = self.dropout2(x)
+        x = self.fc3(x)
+        
+        return x
+
+def load_ml_model():
+    """Load the trained ML model for real-time prediction."""
+    global ml_model, scaler, GLOBAL_MEAN, GLOBAL_STD
+    
+    try:
+        # Initialize model
+        num_classes = len(WEBSITES)
+        ml_model = ComplexFingerprintClassifier(INPUT_SIZE, HIDDEN_SIZE, num_classes)
+        
+        # Load trained weights
+        ml_model.load_state_dict(torch.load(MODEL_PATH, map_location='cpu'))
+        ml_model.eval()
+        
+        # Load global statistics for proper normalization
+        try:
+            with open('global_stats.json', 'r') as f:
+                stats = json.load(f)
+                GLOBAL_MEAN = np.array(stats['mean'])
+                GLOBAL_STD = np.array(stats['scale'])
+            print("✅ Global normalization statistics loaded!")
+        except Exception as e:
+            print(f"⚠️ Could not load global stats: {e}")
+            print("   Prediction accuracy may be reduced")
+        
+        print("✅ ML model loaded successfully!")
+        print(f"Model can classify: {WEBSITES}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Failed to load ML model: {e}")
+        return False
+
+def preprocess_trace_for_prediction(trace, target_length=1000):
+    """Preprocess a single trace for ML prediction to match training preprocessing."""
+    global GLOBAL_MEAN, GLOBAL_STD
+    
+    try:
+        trace = np.array(trace, dtype=np.float32)
+        
+        print(f"🔍 Debug - Input trace stats: len={len(trace)}, mean={np.mean(trace):.2f}, std={np.std(trace):.2f}, min={np.min(trace)}, max={np.max(trace)}")
+        
+        # Truncate or pad to target length (same as training)
+        if len(trace) > target_length:
+            trace = trace[:target_length]
+        elif len(trace) < target_length:
+            trace = np.pad(trace, (0, target_length - len(trace)), mode='constant')
+        
+        # Apply the EXACT same normalization as training using global statistics
+        if GLOBAL_MEAN is not None and GLOBAL_STD is not None:
+            # StandardScaler formula: (x - mean) / std
+            trace = (trace - GLOBAL_MEAN) / GLOBAL_STD
+            print(f"✅ Applied global normalization - new stats: mean={np.mean(trace):.2f}, std={np.std(trace):.2f}")
+        else:
+            print("⚠️  WARNING: No global stats available, using trace without normalization")
+        
+        processed_trace = trace.flatten()
+        print(f"🔍 Debug - Final processed trace stats: mean={np.mean(processed_trace):.2f}, std={np.std(processed_trace):.2f}")
+        
+        return processed_trace
+        
+    except Exception as e:
+        print(f"Error preprocessing trace: {e}")
+        return None
+
+def predict_website(trace):
+    """Predict which website a trace belongs to."""
+    global ml_model
+    
+    if ml_model is None:
+        return None, None
+    
+    try:
+        # Preprocess trace
+        processed_trace = preprocess_trace_for_prediction(trace)
+        if processed_trace is None:
+            return None, None
+        
+        # Convert to tensor
+        trace_tensor = torch.FloatTensor(processed_trace).unsqueeze(0)
+        
+        # Make prediction
+        with torch.no_grad():
+            outputs = ml_model(trace_tensor)
+            probabilities = torch.softmax(outputs, dim=1)
+            predicted_class = torch.argmax(outputs, dim=1).item()
+            confidence = probabilities[0][predicted_class].item()
+        
+        # Debug output
+        print(f"🔍 Debug - Raw model outputs: {outputs[0].cpu().numpy()}")
+        print(f"🔍 Debug - Softmax probabilities: {probabilities[0].cpu().numpy()}")
+        print(f"🔍 Debug - Predicted class: {predicted_class}")
+        print(f"🔍 Debug - Website mapping: {dict(enumerate(WEBSITES))}")
+        
+        predicted_website = WEBSITES[predicted_class]
+        
+        # Get all probabilities for detailed results
+        all_probs = {
+            WEBSITES[i]: float(probabilities[0][i])
+            for i in range(len(WEBSITES))
+        }
+        
+        print(f"🔍 Debug - All probabilities: {all_probs}")
+        print(f"🔍 Debug - Final prediction: {predicted_website} with confidence {confidence:.3f}")
+        
+        return predicted_website, confidence, all_probs
+        
+    except Exception as e:
+        print(f"Error making prediction: {e}")
+        return None, None, None
+
+# Load the ML model when the app starts
+if not load_ml_model():
+    print("⚠️  App will run without ML prediction capabilities")
 
 @app.route('/')
 def index():
@@ -303,6 +500,158 @@ def get_results():
             'heatmaps': stored_heatmaps,
             'traces': stored_traces
         })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/predict_website', methods=['POST'])
+def predict_website_endpoint():
+    """
+    Real-time website prediction endpoint.
+    Takes trace data and returns prediction with confidence scores.
+    """
+    try:
+        if ml_model is None:
+            return jsonify({
+                'success': False,
+                'error': 'ML model not loaded. Please check model file exists.'
+            }), 500
+        
+        data = request.get_json()
+        trace_data = data.get('trace', [])
+        
+        if not trace_data:
+            return jsonify({
+                'success': False,
+                'error': 'No trace data provided'
+            }), 400
+        
+        # Make prediction
+        predicted_website, confidence, all_probabilities = predict_website(trace_data)
+        
+        if predicted_website is None:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to make prediction'
+            }), 500
+        
+        return jsonify({
+            'success': True,
+            'prediction': {
+                'website': predicted_website,
+                'confidence': confidence,
+                'all_probabilities': all_probabilities
+            },
+            'timestamp': int(datetime.now().timestamp() * 1000),
+            'trace_length': len(trace_data)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/model_status', methods=['GET'])
+def model_status():
+    """
+    Get the status of the ML model and available websites.
+    """
+    try:
+        return jsonify({
+            'model_loaded': ml_model is not None,
+            'model_path': MODEL_PATH,
+            'available_websites': WEBSITES,
+            'input_size': INPUT_SIZE,
+            'model_type': 'Complex CNN' if ml_model is not None else None
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/collect_trace_with_prediction', methods=['POST'])
+def collect_trace_with_prediction():
+    """
+    Enhanced trace collection that also provides real-time prediction.
+    Combines the heatmap generation with ML prediction.
+    """
+    try:
+        data = request.get_json()
+        trace_data = data['trace']
+        timestamp = data.get('timestamp', int(datetime.now().timestamp() * 1000))
+        
+        # Generate heatmap (existing functionality)
+        heatmap_filename = f"heatmap_{uuid.uuid4().hex}_{timestamp}.png"
+        heatmap_path = os.path.join('results', heatmap_filename)
+        
+        # Create heatmap visualization
+        plt.figure(figsize=(12, 8))
+        
+        # Reshape data for better visualization
+        data_array = np.array(trace_data)
+        
+        # Create 2D representation for heatmap
+        rows = int(np.sqrt(len(data_array))) + 1
+        cols = int(np.ceil(len(data_array) / rows))
+        
+        # Pad with zeros if necessary
+        padded_data = np.pad(data_array, (0, rows * cols - len(data_array)), mode='constant')
+        heatmap_data = padded_data.reshape((rows, cols))
+        
+        # Create heatmap
+        im = plt.imshow(heatmap_data, cmap='viridis', aspect='auto')
+        plt.colorbar(im, label='Sweep Count')
+        plt.title(f'Cache Trace Heatmap - {datetime.fromtimestamp(timestamp/1000).strftime("%Y-%m-%d %H:%M:%S")}')
+        plt.xlabel('Time Window')
+        plt.ylabel('Cache Access Pattern')
+        
+        # Save the heatmap
+        plt.tight_layout()
+        plt.savefig(heatmap_path, dpi=100, bbox_inches='tight')
+        plt.close()
+        
+        # Make ML prediction if model is available
+        prediction_result = None
+        if ml_model is not None:
+            predicted_website, confidence, all_probabilities = predict_website(trace_data)
+            if predicted_website is not None:
+                prediction_result = {
+                    'website': predicted_website,
+                    'confidence': confidence,
+                    'all_probabilities': all_probabilities
+                }
+        
+        # Store trace data and heatmap info
+        trace_info = {
+            'trace': trace_data,
+            'timestamp': timestamp,
+            'heatmap_path': f'/results/{heatmap_filename}',
+            'data_points': len(trace_data),
+            'prediction': prediction_result
+        }
+        
+        stored_traces.append(trace_info)
+        stored_heatmaps.append({
+            'path': f'/results/{heatmap_filename}',
+            'timestamp': timestamp,
+            'dataPoints': len(trace_data),
+            'prediction': prediction_result
+        })
+        
+        response = {
+            'success': True,
+            'heatmap_path': f'/results/{heatmap_filename}',
+            'data_points': len(trace_data),
+            'timestamp': timestamp
+        }
+        
+        if prediction_result:
+            response['prediction'] = prediction_result
+        
+        return jsonify(response)
+        
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

@@ -1,0 +1,156 @@
+{
+  "hyperparameter_experiments": [
+    {
+      "experiment": "batch_32",
+      "model": "Basic_CNN",
+      "batch_size": 32,
+      "learning_rate": 0.0001,
+      "accuracy": 0.8783,
+      "training_time": 17.4
+    },
+    {
+      "experiment": "batch_32",
+      "model": "Complex_CNN",
+      "batch_size": 32,
+      "learning_rate": 0.0001,
+      "accuracy": 0.8867,
+      "training_time": 75.2
+    },
+    {
+      "experiment": "batch_64",
+      "model": "Basic_CNN",
+      "batch_size": 64,
+      "learning_rate": 0.0001,
+      "accuracy": 0.8767,
+      "training_time": 14.4
+    },
+    {
+      "experiment": "batch_64",
+      "model": "Complex_CNN",
+      "batch_size": 64,
+      "learning_rate": 0.0001,
+      "accuracy": 0.88,
+      "training_time": 61.3
+    },
+    {
+      "experiment": "batch_128",
+      "model": "Basic_CNN",
+      "batch_size": 128,
+      "learning_rate": 0.0001,
+      "accuracy": 0.8633,
+      "training_time": 13.3
+    },
+    {
+      "experiment": "batch_128",
+      "model": "Complex_CNN",
+      "batch_size": 128,
+      "learning_rate": 0.0001,
+      "accuracy": 0.8833,
+      "training_time": 55.9
+    },
+    {
+      "experiment": "lr_1e5",
+      "model": "Basic_CNN",
+      "batch_size": 64,
+      "learning_rate": 1e-05,
+      "accuracy": 0.7617,
+      "training_time": 14.4
+    },
+    {
+      "experiment": "lr_1e5",
+      "model": "Complex_CNN",
+      "batch_size": 64,
+      "learning_rate": 1e-05,
+      "accuracy": 0.8733,
+      "training_time": 55.8
+    },
+    {
+      "experiment": "lr_1e4",
+      "model": "Basic_CNN",
+      "batch_size": 64,
+      "learning_rate": 0.0001,
+      "accuracy": 0.8733,
+      "training_time": 12.6
+    },
+    {
+      "experiment": "lr_1e4",
+      "model": "Complex_CNN",
+      "batch_size": 64,
+      "learning_rate": 0.0001,
+      "accuracy": 0.8783,
+      "training_time": 45.6
+    },
+    {
+      "experiment": "lr_1e3",
+      "model": "Basic_CNN",
+      "batch_size": 64,
+      "learning_rate": 0.001,
+      "accuracy": 0.875,
+      "training_time": 14.3
+    },
+    {
+      "experiment": "lr_1e3",
+      "model": "Complex_CNN",
+      "batch_size": 64,
+      "learning_rate": 0.001,
+      "accuracy": 0.8917,
+      "training_time": 46.5
+    }
+  ],
+  "data_size_experiments": [
+    {
+      "total_data_size": 300,
+      "accuracy": 0.8333
+    },
+    {
+      "total_data_size": 600,
+      "accuracy": 0.875
+    },
+    {
+      "total_data_size": 1200,
+      "accuracy": 0.8083
+    },
+    {
+      "total_data_size": 2000,
+      "accuracy": 0.875
+    },
+    {
+      "total_data_size": 2999,
+      "accuracy": 0.86
+    }
+  ],
+  "website_patterns": {
+    "buet_moodle": {
+      "mean_sweep": 41.98,
+      "std_dev": 5.1,
+      "range": "2-55"
+    },
+    "google": {
+      "mean_sweep": 38.16,
+      "std_dev": 8.3,
+      "range": "1-57"
+    },
+    "prothomalo": {
+      "mean_sweep": 41.4,
+      "std_dev": 6.73,
+      "range": "1-55"
+    }
+  },
+  "classification_per_website": {
+    "buet_moodle": {
+      "precision": 0.77,
+      "recall": 0.97,
+      "f1": 0.86
+    },
+    "google": {
+      "precision": 0.91,
+      "recall": 0.7,
+      "f1": 0.79
+    },
+    "prothomalo": {
+      "precision": 0.98,
+      "recall": 0.96,
+      "f1": 0.97
+    }
+  }
+}

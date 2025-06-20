@@ -44,12 +44,152 @@
         .heatmap-item h4 {
             margin-top: 0;
             font-size: 1rem;
-        }        
+        }
+        
+        .prediction-section {
+            background: var(--card-background-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+        
+        .model-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .status-online {
+            background-color: #28a745;
+        }
+        
+        .status-offline {
+            background-color: #dc3545;
+        }
+        
+        .prediction-result {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .confidence-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #ffc107, #dc3545);
+            transition: width 0.3s ease;
+        }
+        
+        .prediction-probabilities {
+            margin-top: 1rem;
+        }
+        
+        .prob-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            border-radius: 4px;
+            background-color: var(--code-background-color);
+        }
+        
+        .prob-bar {
+            width: 100px;
+            height: 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-left: 1rem;
+        }
+        
+        .prob-fill {
+            height: 100%;
+            background-color: #007bff;
+            transition: width 0.3s ease;
+        }
     </style>
 </head>
 <body>
     <main class="container" x-data="app()">
         <h1>CSE406: Website Fingerprinting</h1>
+        
+        <!-- ML Model Status Section -->
+        <div class="prediction-section">
+            <h3>🧠 Real-Time Website Detection</h3>
+            <div class="model-status">
+                <div class="status-indicator" :class="modelStatus.model_loaded ? 'status-online' : 'status-offline'"></div>
+                <span x-text="modelStatus.model_loaded ? 'ML Model Loaded' : 'ML Model Not Available'"></span>
+                <span x-show="modelStatus.model_type" x-text="`(${modelStatus.model_type})`"></span>
+            </div>
+            
+            <template x-if="modelStatus.model_loaded">
+                <div>
+                    <p><strong>Available Websites:</strong></p>
+                    <ul>
+                        <template x-for="website in modelStatus.available_websites" :key="website">
+                            <li x-text="website"></li>
+                        </template>
+                    </ul>
+                </div>
+            </template>
+            
+            <div class="button-group">
+                <button @click="collectTraceWithPrediction()" :disabled="isCollecting || !modelStatus.model_loaded">
+                    🔍 Collect Trace & Predict
+                </button>
+                <button @click="predictFromLastTrace()" :disabled="!latestTrace || !modelStatus.model_loaded">
+                    🎯 Predict Latest Trace
+                </button>
+            </div>
+            
+            <!-- Real-time Prediction Results -->
+            <template x-if="latestPrediction">
+                <div class="prediction-result">
+                    <h4>🎯 Prediction Result</h4>
+                    <p><strong>Detected Website:</strong> <span x-text="latestPrediction.website"></span></p>
+                    <p><strong>Confidence:</strong> <span x-text="(latestPrediction.confidence * 100).toFixed(1)"></span>%</p>
+                    
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" :style="`width: ${latestPrediction.confidence * 100}%`"></div>
+                    </div>
+                    
+                    <template x-if="latestPrediction.all_probabilities">
+                        <div class="prediction-probabilities">
+                            <h5>All Probabilities:</h5>
+                            <template x-for="(prob, website) in latestPrediction.all_probabilities" :key="website">
+                                <div class="prob-item">
+                                    <span x-text="website.split('/').slice(-2).join('/')"></span>
+                                    <span x-text="(prob * 100).toFixed(1) + '%'"></span>
+                                    <div class="prob-bar">
+                                        <div class="prob-fill" :style="`width: ${prob * 100}%`"></div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    
+                    <p><small>Predicted at: <span x-text="new Date(latestPrediction.timestamp).toLocaleString()"></span></small></p>
+                </div>
+            </template>
+        </div>
         
         <div class="button-group">
             <button @click="collectLatencyData()" :disabled="isCollecting">Collect Latency Data</button>
@@ -96,6 +236,12 @@
                             <img :src="heatmap.path" :alt="`Heatmap ${index + 1}`" style="max-width: 100%; height: auto;">
                             <p><strong>Data points:</strong> <span x-text="heatmap.dataPoints"></span></p>
                             <p x-show="heatmap.technique"><strong>Technique:</strong> <span x-text="heatmap.technique"></span></p>
+                            <template x-if="heatmap.prediction">
+                                <div style="background: var(--code-background-color); padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem;">
+                                    <p><strong>🎯 Prediction:</strong> <span x-text="heatmap.prediction.website"></span></p>
+                                    <p><strong>Confidence:</strong> <span x-text="(heatmap.prediction.confidence * 100).toFixed(1)"></span>%</p>
+                                </div>
+                            </template>
                         </div>
                     </template>
                 </div>
@@ -105,9 +251,17 @@
 
     <script src="index.js"></script>
     <script>
-        // Initialize app by fetching existing results when page loads
+        // Initialize app by fetching existing results and model status when page loads
         document.addEventListener('alpine:init', () => {
-            window.Alpine.store('app').fetchResults();
+            // Initialize the app with both results and model status
+            const appData = window.Alpine.store('app');
+            if (appData && appData.init) {
+                appData.init();
+            } else {
+                // Fallback if init method doesn't exist
+                if (appData && appData.fetchResults) appData.fetchResults();
+                if (appData && appData.fetchModelStatus) appData.fetchModelStatus();
+            }
         });
     </script>
 </body>

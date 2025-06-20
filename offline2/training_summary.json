@@ -11,12 +11,12 @@
   },
   "results": {
     "Basic CNN": {
-      "accuracy": 0.8783333333333333
+      "accuracy": 0.8816666666666667
     },
     "Complex CNN": {
-      "accuracy": 0.8883333333333333
+      "accuracy": 0.8833333333333333
     }
   },
   "best_model": "Complex CNN",
-  "best_accuracy": 0.8883333333333333
+  "best_accuracy": 0.8833333333333333
 }

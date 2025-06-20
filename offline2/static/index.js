@@ -19,6 +19,153 @@ function app() {
     // Show trace data in the UI?
     showingTraces: false,
 
+    // ML Model state
+    modelStatus: {
+      model_loaded: false,
+      available_websites: [],
+      model_type: null
+    },
+    latestPrediction: null,
+    latestTrace: null,
+
+    // Initialize by fetching model status
+    async init() {
+      await this.fetchModelStatus();
+      await this.fetchResults();
+    },
+
+    // Fetch ML model status from backend
+    async fetchModelStatus() {
+      try {
+        const response = await fetch('/api/model_status');
+        if (response.ok) {
+          this.modelStatus = await response.json();
+        }
+      } catch (error) {
+        console.error("Error fetching model status:", error);
+      }
+    },
+
+    // Collect trace data with real-time prediction
+    async collectTraceWithPrediction() {
+      this.isCollecting = true;
+      this.status = "Collecting trace data with ML prediction... This will take about 10 seconds.";
+      this.statusIsError = false;
+      this.showingTraces = true;
+
+      try {
+        // Create worker
+        let worker = new Worker("worker.js");
+
+        // Start trace collection and wait for result
+        const result = await new Promise((resolve) => {
+          worker.onmessage = (e) => resolve(e.data);
+          worker.postMessage("start");
+        });
+
+        if (!result.success) {
+          throw new Error(result.error);
+        }
+
+        // Store latest trace for potential re-prediction
+        this.latestTrace = result.data;
+
+        // Send trace data to backend with prediction
+        const response = await fetch('/collect_trace_with_prediction', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            trace: result.data,
+            timestamp: result.timestamp
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+
+        const backendResult = await response.json();
+        
+        // Add heatmap to local collection
+        this.heatmaps.push({
+          path: backendResult.heatmap_path,
+          timestamp: result.timestamp,
+          dataPoints: result.data.length,
+          prediction: backendResult.prediction
+        });
+        
+        // Store trace data locally
+        this.traceData.push({
+          data: result.data,
+          timestamp: result.timestamp,
+          prediction: backendResult.prediction
+        });
+
+        // Update latest prediction
+        if (backendResult.prediction) {
+          this.latestPrediction = {
+            ...backendResult.prediction,
+            timestamp: result.timestamp
+          };
+          this.status = `Trace collected and analyzed! Predicted: ${backendResult.prediction.website} (${(backendResult.prediction.confidence * 100).toFixed(1)}% confidence)`;
+        } else {
+          this.status = `Trace collection complete! Collected ${result.data.length} data points. (No prediction available)`;
+        }
+        
+        // Terminate worker
+        worker.terminate();
+      } catch (error) {
+        console.error("Error collecting trace data with prediction:", error);
+        this.status = `Error: ${error.message}`;
+        this.statusIsError = true;
+      } finally {
+        this.isCollecting = false;
+      }
+    },
+
+    // Predict website from the latest collected trace
+    async predictFromLastTrace() {
+      if (!this.latestTrace) {
+        this.status = "No trace data available for prediction";
+        this.statusIsError = true;
+        return;
+      }
+
+      this.status = "Making prediction from latest trace...";
+      this.statusIsError = false;
+
+      try {
+        const response = await fetch('/api/predict_website', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            trace: this.latestTrace
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+          this.latestPrediction = result.prediction;
+          this.status = `Prediction: ${result.prediction.website} (${(result.prediction.confidence * 100).toFixed(1)}% confidence)`;
+        } else {
+          throw new Error(result.error);
+        }
+      } catch (error) {
+        console.error("Error making prediction:", error);
+        this.status = `Prediction error: ${error.message}`;
+        this.statusIsError = true;
+      }
+    },
+
     // Collect latency data using warmup.js worker
     async collectLatencyData() {
       this.isCollecting = true;
@@ -188,6 +335,8 @@ function app() {
           this.heatmaps = [];
           this.latencyResults = null;
           this.showingTraces = false;
+          this.latestPrediction = null;
+          this.latestTrace = null;
           
           this.status = "All results cleared successfully";
       } catch (error) {
