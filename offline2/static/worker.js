@@ -53,9 +53,12 @@ function sweep(P) {
 
 self.addEventListener('message', function(e) {
     /* Call the sweep function and return the result */
-    if (e.data === 'start') {
+    console.log(e.data);
+    const {command, psize} = e.data;
+    if (command === 'start') {
+        console.log(`Starting sweep with P = ${psize}`);
         try {
-            const traceData = sweep(P);
+            const traceData = sweep(psize);
             self.postMessage({
                 success: true,
                 data: traceData,

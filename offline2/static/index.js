@@ -46,6 +46,20 @@ function app() {
       }
     },
 
+    chooseWindowSize(latencyResults) {
+      // Convert keys to numbers and sort
+      const entries = Object.entries(latencyResults)
+        .map(([n, t]) => ({ n: +n, t }))
+        .sort((a, b) => a.n - b.n);
+    
+      if (entries.length === 0) return 10;    // fallback
+    
+      // Take the largest-n measurement
+      const last = entries[entries.length - 1];
+      // Safety margin: 2× the measured median
+      return Math.ceil(last.t * 2);
+    },
+
     // Collect trace data with real-time prediction
     async collectTraceWithPrediction() {
       this.isCollecting = true;
@@ -55,12 +69,13 @@ function app() {
 
       try {
         // Create worker
+        const p = this.chooseWindowSize(this.latencyResults);
         let worker = new Worker("worker.js");
 
         // Start trace collection and wait for result
         const result = await new Promise((resolve) => {
           worker.onmessage = (e) => resolve(e.data);
-          worker.postMessage("start");
+          worker.postMessage({command: "start", psize: p});
         });
 
         if (!result.success) {
@@ -217,12 +232,13 @@ function app() {
 
         try {
             // Create worker
+            const p = this.chooseWindowSize(this.latencyResults);
             let worker = new Worker("worker.js");
 
             // Start trace collection and wait for result
             const result = await new Promise((resolve) => {
                 worker.onmessage = (e) => resolve(e.data);
-                worker.postMessage("start");
+                worker.postMessage({command: "start", psize: p});
             });
 
             if (!result.success) {

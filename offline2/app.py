@@ -243,14 +243,32 @@ def collect_trace():
         heatmap_filename = f"heatmap_{uuid.uuid4().hex}_{timestamp}.png"
         heatmap_path = os.path.join('results', heatmap_filename)
         
-        # Create heatmap visualization
+        # Create combined visualization with heatmap and line plot
         plt.figure(figsize=(12, 8))
+        # fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
         
         # Reshape data for better visualization
         data_array = np.array(trace_data)
         
+        # Top plot: Line plot showing trace data over time (similar to your image style)
+        # ax1.plot(range(len(data_array)), data_array, 'b-', linewidth=1.5, alpha=0.8)
+        # ax1.fill_between(range(len(data_array)), data_array, alpha=0.3, color='blue')
+        # ax1.set_title(f'Cache Trace Timeline - {datetime.fromtimestamp(timestamp/1000).strftime("%Y-%m-%d %H:%M:%S")}')
+        # ax1.set_xlabel('Time Index')
+        # ax1.set_ylabel('Sweep Count')
+        # ax1.grid(True, alpha=0.3)
+        # ax1.set_xlim(0, len(data_array))
+        
+        # # Add some statistics as text
+        # mean_val = np.mean(data_array)
+        # max_val = np.max(data_array)
+        # min_val = np.min(data_array)
+        # ax1.text(0.02, 0.98, f'Mean: {mean_val:.2f}\nMax: {max_val}\nMin: {min_val}', 
+        #         transform=ax1.transAxes, verticalalignment='top', 
+        #         bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+        
+        # Bottom plot: 2D heatmap representation
         # Create 2D representation for heatmap
-        # Reshape into a grid for better visualization
         rows = int(np.sqrt(len(data_array))) + 1
         cols = int(np.ceil(len(data_array) / rows))
         
@@ -264,6 +282,11 @@ def collect_trace():
         plt.title(f'Cache Trace Heatmap - {datetime.fromtimestamp(timestamp/1000).strftime("%Y-%m-%d %H:%M:%S")}')
         plt.xlabel('Time Window')
         plt.ylabel('Cache Access Pattern')
+        # im = ax2.imshow(heatmap_data, cmap='viridis', aspect='auto')
+        # plt.colorbar(im, ax=ax2, label='Sweep Count')
+        # ax2.set_title('Cache Trace Heatmap (2D Representation)')
+        # ax2.set_xlabel('Time Window')
+        # ax2.set_ylabel('Cache Access Pattern')
         
         # Save the heatmap
         plt.tight_layout()
