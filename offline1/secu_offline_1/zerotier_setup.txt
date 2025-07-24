@@ -1,0 +1,6 @@
+curl -s https://install.zerotier.com | sudo bash
+sudo zerotier-cli join 272F5EAE1669A336
+sudo systemctl restart zerotier-one
+sudo zerotier-cli listnetworks
+sudo zerotier-cli status
+

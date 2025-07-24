@@ -17,6 +17,7 @@ stored_traces = []
 stored_heatmaps = []
 
 # ML Model Configuration
+# MODEL_PATH = "saved_models/complex_cnn_model.pth"
 MODEL_PATH = "saved_models/complex_cnn_model.pth"
 INPUT_SIZE = 1000
 HIDDEN_SIZE = 128

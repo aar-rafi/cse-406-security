@@ -1,0 +1,35 @@
+{
+  "dataset_info": {
+    "total_traces": 2999,
+    "enhanced_features": 1036,
+    "websites": [
+      "https://cse.buet.ac.bd/moodle/",
+      "https://google.com",
+      "https://prothomalo.com"
+    ],
+    "train_size": 2399,
+    "test_size": 600
+  },
+  "advanced_techniques": [
+    "Multi-resolution timing analysis",
+    "Cache set monitoring",
+    "Frequency domain features",
+    "Attention mechanisms",
+    "Transformer architecture",
+    "Ensemble methods"
+  ],
+  "results": {
+    "Advanced CNN": {
+      "accuracy": 0.885
+    },
+    "Transformer": {
+      "accuracy": 0.8783333333333333
+    },
+    "Ensemble": {
+      "accuracy": 0.8883333333333333
+    }
+  },
+  "best_model": "Ensemble",
+  "best_accuracy": 0.8883333333333333,
+  "improvement_over_basic": 3.333333333332966e-05
+}
