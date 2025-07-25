@@ -70,12 +70,12 @@ class AttackMonitor:
             print(f"{Fore.CYAN}{'='*60}")
             print(f"{Fore.CYAN}             LIVE ATTACK MONITOR")
             print(f"{Fore.CYAN}{'='*60}")
-            print(f"{Fore.GREEN}📊 Attack Statistics:")
-            print(f"   📤 Packets Sent: {self.attack_stats['packets_sent']}")
-            print(f"   🔀 Redirects Sent: {self.attack_stats['redirects_sent']}")
-            print(f"   📥 Responses Received: {self.attack_stats['responses_received']}")
-            print(f"   🔄 Routing Changes: {self.attack_stats['routing_changes']}")
-            print(f"{Fore.YELLOW}⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
+            print(f"{Fore.GREEN} Attack Statistics:")
+            print(f"   Packets Sent: {self.attack_stats['packets_sent']}")
+            print(f"   Redirects Sent: {self.attack_stats['redirects_sent']}")
+            print(f"   Responses Received: {self.attack_stats['responses_received']}")
+            print(f"   Routing Changes: {self.attack_stats['routing_changes']}")
+            print(f"{Fore.YELLOW} Time: {datetime.now().strftime('%H:%M:%S')}")
             print(f"{Fore.CYAN}{'='*60}")
             time.sleep(1)
     
@@ -117,7 +117,7 @@ class ICMPAttackTool:
         """Check if running with root privileges"""
         if os.geteuid() != 0:
             print(f"{Fore.RED}❌ Error: This tool requires root privileges")
-            print(f"{Fore.YELLOW}💡 Please run with: sudo python3 {sys.argv[0]}")
+            print(f"{Fore.YELLOW} Please run with: sudo python3 {sys.argv[0]}")
             sys.exit(1)
     
     def capture_initial_routes(self, target_ip):
@@ -161,13 +161,13 @@ class ICMPAttackTool:
                 dst_ip = packet[IP].dst
                 
                 if icmp_type == 5:  # ICMP Redirect
-                    print(f"{Fore.RED}🔀 REDIRECT DETECTED: {src_ip} → {dst_ip}")
+                    print(f"{Fore.RED} REDIRECT DETECTED: {src_ip} → {dst_ip}")
                     self.monitor.attack_stats['responses_received'] += 1
                 elif icmp_type == 0:  # ICMP Reply
-                    print(f"{Fore.GREEN}📥 PING REPLY: {src_ip} → {dst_ip}")
+                    print(f"{Fore.GREEN} PING REPLY: {src_ip} → {dst_ip}")
                     self.monitor.attack_stats['responses_received'] += 1
                 elif icmp_type == 8:  # ICMP Request
-                    print(f"{Fore.BLUE}📤 PING REQUEST: {src_ip} → {dst_ip}")
+                    print(f"{Fore.BLUE} PING REQUEST: {src_ip} → {dst_ip}")
         
         print(f"{Fore.CYAN}🔍 Starting packet capture...")
         sniff(filter=filter_str, prn=packet_handler, timeout=duration)
@@ -179,9 +179,9 @@ class ICMPAttackTool:
         if not source_ip:
             source_ip = self.fake.ipv4()
         
-        print(f"{Fore.MAGENTA}🎯 Target: {target_ip}")
-        print(f"{Fore.MAGENTA}🔀 Spoofed Source: {source_ip}")
-        print(f"{Fore.MAGENTA}📊 Count: {count}")
+        print(f"{Fore.MAGENTA} Target: {target_ip}")
+        print(f"{Fore.MAGENTA} Spoofed Source: {source_ip}")
+        print(f"{Fore.MAGENTA} Count: {count}")
         print()
         
         # Start monitoring
@@ -208,7 +208,7 @@ class ICMPAttackTool:
             time.sleep(5)
             
         except KeyboardInterrupt:
-            print(f"\n{Fore.YELLOW}⚠️  Attack interrupted!")
+            print(f"\n{Fore.YELLOW}  Attack interrupted!")
         finally:
             self.monitor.stop_monitoring()
         
@@ -222,10 +222,10 @@ class ICMPAttackTool:
         if not fake_gateway_ip:
             fake_gateway_ip = self.fake.ipv4()
         
-        print(f"{Fore.MAGENTA}🎯 Victim: {victim_ip}")
-        print(f"{Fore.MAGENTA}🎯 Target: {target_ip}")
-        print(f"{Fore.MAGENTA}🚪 Gateway: {gateway_ip}")
-        print(f"{Fore.MAGENTA}🔀 Fake Gateway: {fake_gateway_ip}")
+        print(f"{Fore.MAGENTA} Victim: {victim_ip}")
+        print(f"{Fore.MAGENTA} Target: {target_ip}")
+        print(f"{Fore.MAGENTA} Gateway: {gateway_ip}")
+        print(f"{Fore.MAGENTA} Fake Gateway: {fake_gateway_ip}")
         print()
         
         # Capture initial routing state
@@ -266,11 +266,11 @@ class ICMPAttackTool:
             print(f"{Fore.GREEN}✅ Redirect packet sent!")
             
             # Monitor for 30 seconds
-            print(f"{Fore.CYAN}⏳ Monitoring for effects...")
+            print(f"{Fore.CYAN} Monitoring for effects...")
             time.sleep(30)
             
         except KeyboardInterrupt:
-            print(f"\n{Fore.YELLOW}⚠️  Attack interrupted!")
+            print(f"\n{Fore.YELLOW}  Attack interrupted!")
         finally:
             self.monitor.stop_monitoring()
         
@@ -281,12 +281,12 @@ class ICMPAttackTool:
     def show_attack_summary(self):
         """Display final attack statistics"""
         stats = self.monitor.attack_stats
-        print(f"\n{Fore.CYAN}📊 ATTACK SUMMARY")
+        print(f"\n{Fore.CYAN} ATTACK SUMMARY")
         print("=" * 40)
-        print(f"📤 Total packets sent: {stats['packets_sent']}")
-        print(f"🔀 Redirects sent: {stats['redirects_sent']}")
-        print(f"📥 Responses captured: {stats['responses_received']}")
-        print(f"🔄 Routing changes detected: {stats['routing_changes']}")
+        print(f" Total packets sent: {stats['packets_sent']}")
+        print(f" Redirects sent: {stats['redirects_sent']}")
+        print(f" Responses captured: {stats['responses_received']}")
+        print(f" Routing changes detected: {stats['routing_changes']}")
         print("=" * 40)
     
     def show_verification_commands(self, victim_ip, target_ip, fake_gateway_ip):
@@ -305,7 +305,7 @@ class ICMPAttackTool:
     
     def continuous_attack_mode(self, attack_type, **kwargs):
         """Continuous attack mode with real-time monitoring"""
-        print(f"{Fore.RED}🔥 CONTINUOUS ATTACK MODE ACTIVATED")
+        print(f"{Fore.RED} CONTINUOUS ATTACK MODE ACTIVATED")
         print(f"{Fore.YELLOW}Press Ctrl+C to stop...")
         
         self.monitor.start_monitoring()
@@ -319,7 +319,7 @@ class ICMPAttackTool:
                     time.sleep(10)  # Wait between redirect attempts
                 
         except KeyboardInterrupt:
-            print(f"\n{Fore.YELLOW}⚠️  Continuous attack stopped!")
+            print(f"\n{Fore.YELLOW}  Continuous attack stopped!")
         finally:
             self.monitor.stop_monitoring()
     
@@ -336,7 +336,7 @@ class ICMPAttackTool:
     
     def live_network_monitor(self):
         """Live network monitoring mode"""
-        print(f"{Fore.CYAN}📡 LIVE NETWORK MONITOR")
+        print(f"{Fore.CYAN} LIVE NETWORK MONITOR")
         print("=" * 30)
         print("Monitoring all ICMP traffic...")
         print("Press Ctrl+C to stop")
@@ -345,7 +345,7 @@ class ICMPAttackTool:
         try:
             self.packet_sniffer("icmp", duration=0)  # Infinite monitoring
         except KeyboardInterrupt:
-            print(f"\n{Fore.YELLOW}⚠️  Monitoring stopped!")
+            print(f"\n{Fore.YELLOW}  Monitoring stopped!")
     
     def run_interactive_mode(self):
         """Run the tool in interactive mode"""
@@ -358,7 +358,7 @@ class ICMPAttackTool:
             
             if choice == '1':
                 # ICMP Spoofing Attack
-                print(f"\n{Fore.CYAN}🎯 ICMP SPOOFING CONFIGURATION")
+                print(f"\n{Fore.CYAN} ICMP SPOOFING CONFIGURATION")
                 target = input("Target IP: ")
                 source = input("Source IP (empty for random): ") or None
                 count = int(input("Packet count (default 5): ") or 5)
@@ -368,7 +368,7 @@ class ICMPAttackTool:
             
             elif choice == '2':
                 # ICMP Redirect Attack
-                print(f"\n{Fore.CYAN}🎯 ICMP REDIRECT CONFIGURATION")
+                print(f"\n{Fore.CYAN} ICMP REDIRECT CONFIGURATION")
                 victim = input("Victim IP: ")
                 target = input("Target IP: ")
                 gateway = input("Gateway IP: ")
@@ -378,7 +378,7 @@ class ICMPAttackTool:
             
             elif choice == '3':
                 # Continuous Attack Mode
-                print(f"\n{Fore.CYAN}🔥 CONTINUOUS ATTACK MODE")
+                print(f"\n{Fore.CYAN} CONTINUOUS ATTACK MODE")
                 print("1. Continuous ICMP Spoofing")
                 print("2. Continuous ICMP Redirect")
                 
@@ -402,7 +402,7 @@ class ICMPAttackTool:
             
             elif choice == '5':
                 # Exit
-                print(f"{Fore.GREEN}👋 Attack session terminated.")
+                print(f"{Fore.GREEN} Attack session terminated.")
                 break
             
             else:
@@ -455,7 +455,7 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print(f"\n{Fore.YELLOW}⚠️  Attack terminated by user.")
+        print(f"\n{Fore.YELLOW}  Attack terminated by user.")
         sys.exit(0)
     except Exception as e:
         print(f"\n{Fore.RED}❌ Error: {e}")

