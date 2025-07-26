@@ -6,14 +6,22 @@ Comprehensive ICMP spoofing and redirect attack tool featuring real-time visual 
 
 ### Available Versions
 
-This project provides two implementation approaches:
+This project provides multiple implementation approaches:
 
-#### 1. Scapy-based Tools (High-level)
+#### 1. GUI Interface (Recommended for demonstrations)
+- `icmp_attack_gui.py` - Full graphical interface with real-time monitoring
+- Visual network topology diagram
+- Live tcpdump output from both victim and attacker namespaces
+- Real-time routing table monitoring
+- Attack configuration with predefined scenarios
+- Results analysis and export capabilities
+
+#### 2. Scapy-based Tools (High-level)
 - `icmp_spoofer.py` - Full-featured with packet sniffing
 - `icmp_redirect.py` - Advanced redirect attacks
 - `icmp_attack_tool.py` - Interactive tool with all features
 
-#### 2. Raw Socket Tools (Low-level, No Dependencies)
+#### 3. Raw Socket Tools (Low-level, No Dependencies)
 - `icmp_spoofer_raw.py` - Pure Python with socket module
 - `icmp_redirect_raw.py` - Lightweight redirect attacks
 - Reduced dependencies (no Scapy required)
@@ -31,6 +39,57 @@ pip install scapy netifaces colorama faker
 ```bash
 pip install netifaces colorama faker
 ```
+
+#### For GUI interface:
+```bash
+pip install netifaces colorama faker matplotlib
+```
+
+## GUI Interface
+
+### Quick Launch
+```bash
+# Make launcher executable
+chmod +x launch_gui.sh
+
+# Launch GUI
+./launch_gui.sh
+# OR
+python3 icmp_attack_gui.py
+```
+
+### GUI Features
+
+#### Network Topology Tab
+- Visual diagram of namespace network layout
+- Real-time attack indication
+- Network component relationships
+
+#### Attack Configuration Tab
+- Attack type selection (Spoofing/Redirect)
+- Parameter configuration (Target IP, Source IP, Duration)
+- Attack mode selection (Single, Flood, Stealth)
+- Predefined attack scenarios
+- Live configuration validation
+
+#### Live Monitoring Tab
+- **Victim Namespace**: Real-time tcpdump output and routing table
+- **Attacker Namespace**: Attack traffic monitoring
+- **Attack Status**: Live statistics and progress tracking
+- Multi-threaded monitoring for responsive interface
+
+#### Results & Analysis Tab
+- Attack summary and statistics
+- Success/failure analysis
+- Export capabilities (TXT, JSON)
+- Verification command suggestions
+
+### GUI Advantages
+- **Teacher-friendly**: Perfect for classroom demonstrations
+- **Real-time feedback**: Immediate visual confirmation of attacks
+- **No command-line complexity**: Point-and-click interface
+- **Multi-namespace monitoring**: Simultaneous view of all network activity
+- **Professional presentation**: Clean interface for educational settings
 
 ## Key Features
 

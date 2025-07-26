@@ -2,6 +2,7 @@ scapy>=2.4.3
 netifaces>=0.11.0
 colorama>=0.4.4
 faker>=15.0.0
+matplotlib>=3.5.0
 argparse
 ipaddress
 socket 
