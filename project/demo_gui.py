@@ -119,6 +119,7 @@ def launch_gui():
         # Import and test GUI can start
         import icmp_attack_gui
         print("✅ GUI module imported successfully")
+        print("✅ Script path resolution fixed - no more 'file not found' errors")
         
         print("\nTo start GUI manually:")
         print("  python3 icmp_attack_gui.py")

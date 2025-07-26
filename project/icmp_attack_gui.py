@@ -48,6 +48,21 @@ class AttackMonitorGUI:
         self.root = root
         self.root.title("ICMP Attack Demonstration Lab")
         self.root.geometry("1200x800")
+        self.root.configure(bg='#2b2b2b')
+        
+        # Configure colors
+        self.colors = {
+            'bg_dark': '#2b2b2b',
+            'bg_light': '#3c3c3c', 
+            'fg_primary': '#ffffff',
+            'fg_secondary': '#cccccc',
+            'accent_red': '#ff4444',
+            'accent_green': '#44ff44',
+            'accent_blue': '#4444ff',
+            'accent_yellow': '#ffff44',
+            'victim_color': '#ff6b6b',
+            'spoofer_color': '#4ecdc4'
+        }
         
         # Configuration
         self.config = get_config()
@@ -78,6 +93,22 @@ class AttackMonitorGUI:
         
     def create_widgets(self):
         """Create the main GUI widgets"""
+        # Configure style for dark theme
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure('TNotebook', background=self.colors['bg_dark'])
+        style.configure('TNotebook.Tab', background=self.colors['bg_light'], 
+                       foreground=self.colors['fg_primary'], padding=[10, 5])
+        style.map('TNotebook.Tab', background=[('selected', self.colors['accent_blue'])])
+        style.configure('TFrame', background=self.colors['bg_dark'])
+        style.configure('TLabelframe', background=self.colors['bg_dark'], 
+                       foreground=self.colors['fg_primary'])
+        style.configure('TLabel', background=self.colors['bg_dark'], 
+                       foreground=self.colors['fg_primary'])
+        style.configure('TButton', background=self.colors['bg_light'], 
+                       foreground=self.colors['fg_primary'])
+        style.map('TButton', background=[('active', self.colors['accent_green'])])
+        
         # Create notebook for tabs
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill='both', expand=True, padx=10, pady=10)
@@ -294,7 +325,10 @@ Attack Types:
         help_label.pack(anchor='w')
         
         # Configuration display
-        self.config_display = scrolledtext.ScrolledText(self.config_frame, height=12, wrap=tk.WORD)
+        self.config_display = scrolledtext.ScrolledText(self.config_frame, height=12, wrap=tk.WORD,
+                                                       bg=self.colors['bg_light'],
+                                                       fg=self.colors['fg_secondary'],
+                                                       insertbackground=self.colors['fg_primary'])
         self.config_display.pack(fill='both', expand=True, padx=20, pady=10)
         self.update_config_display()
         
@@ -317,22 +351,34 @@ Attack Types:
         
         # Victim tcpdump
         ttk.Label(victim_frame, text="Network Traffic:").pack(anchor='w')
-        self.victim_tcpdump = scrolledtext.ScrolledText(victim_frame, height=8, width=50)
+        self.victim_tcpdump = scrolledtext.ScrolledText(victim_frame, height=8, width=50,
+                                                      bg=self.colors['bg_light'],
+                                                      fg=self.colors['victim_color'],
+                                                      insertbackground=self.colors['fg_primary'])
         self.victim_tcpdump.pack(fill='both', expand=True, pady=2)
+        self.configure_text_tags(self.victim_tcpdump)
         
         # Victim routing
         ttk.Label(victim_frame, text="Routing Table:").pack(anchor='w')
-        self.victim_routing = scrolledtext.ScrolledText(victim_frame, height=4, width=50)
+        self.victim_routing = scrolledtext.ScrolledText(victim_frame, height=4, width=50,
+                                                      bg=self.colors['bg_light'],
+                                                      fg=self.colors['accent_yellow'],
+                                                      insertbackground=self.colors['fg_primary'])
         self.victim_routing.pack(fill='both', expand=True, pady=2)
+        self.configure_text_tags(self.victim_routing)
         
-        # Attacker namespace monitoring
-        attacker_net_frame = ttk.LabelFrame(left_frame, text="Attacker Namespace", padding=5)
-        attacker_net_frame.pack(fill='both', expand=True, pady=5)
+        # Spoofer namespace monitoring
+        spoofer_net_frame = ttk.LabelFrame(left_frame, text="Spoofer Namespace", padding=5)
+        spoofer_net_frame.pack(fill='both', expand=True, pady=5)
         
-        # Attacker tcpdump
-        ttk.Label(attacker_net_frame, text="Network Traffic:").pack(anchor='w')
-        self.attacker_tcpdump = scrolledtext.ScrolledText(attacker_net_frame, height=6, width=50)
+        # Spoofer tcpdump
+        ttk.Label(spoofer_net_frame, text="Network Traffic:").pack(anchor='w')
+        self.attacker_tcpdump = scrolledtext.ScrolledText(spoofer_net_frame, height=6, width=50,
+                                                        bg=self.colors['bg_light'],
+                                                        fg=self.colors['spoofer_color'],
+                                                        insertbackground=self.colors['fg_primary'])
         self.attacker_tcpdump.pack(fill='both', expand=True, pady=2)
+        self.configure_text_tags(self.attacker_tcpdump)
         
         # Right panel - Attack monitoring
         right_frame = ttk.Frame(paned)
@@ -357,12 +403,16 @@ Attack Types:
             self.status_labels[label].grid(row=i, column=1, sticky='w', padx=(10, 0), pady=2)
         
         # Attacker namespace monitoring
-        attacker_frame = ttk.LabelFrame(right_frame, text="Attacker Namespace", padding=5)
+        attacker_frame = ttk.LabelFrame(right_frame, text="Attack Status", padding=5)
         attacker_frame.pack(fill='both', expand=True, pady=5)
         
         ttk.Label(attacker_frame, text="Attack Output:").pack(anchor='w')
-        self.attack_output = scrolledtext.ScrolledText(attacker_frame, height=15, width=50)
+        self.attack_output = scrolledtext.ScrolledText(attacker_frame, height=15, width=50,
+                                                     bg=self.colors['bg_light'],
+                                                     fg=self.colors['accent_green'],
+                                                     insertbackground=self.colors['fg_primary'])
         self.attack_output.pack(fill='both', expand=True, pady=2)
+        self.configure_text_tags(self.attack_output)
         
     def create_results_tab(self):
         """Create results and analysis tab"""
@@ -373,7 +423,10 @@ Attack Types:
         results_text = ttk.LabelFrame(self.results_frame, text="Attack Results", padding=10)
         results_text.pack(fill='both', expand=True, padx=20, pady=10)
         
-        self.results_display = scrolledtext.ScrolledText(results_text, wrap=tk.WORD)
+        self.results_display = scrolledtext.ScrolledText(results_text, wrap=tk.WORD,
+                                                        bg=self.colors['bg_light'],
+                                                        fg=self.colors['fg_primary'],
+                                                        insertbackground=self.colors['fg_primary'])
         self.results_display.pack(fill='both', expand=True)
         
         # Control buttons
@@ -525,8 +578,24 @@ Available Scenarios:
         self.root.after(100, self.process_output_queues)
         
     def append_to_widget(self, widget, text):
-        """Append text to a scrolled text widget"""
-        widget.insert(tk.END, f"{datetime.now().strftime('%H:%M:%S')} {text}\n")
+        """Append text to a scrolled text widget with color coding"""
+        timestamp = datetime.now().strftime('%H:%M:%S')
+        full_text = f"{timestamp} {text}"
+        
+        # Color code based on content
+        if 'ICMP echo request' in text or 'ICMP redirect' in text:
+            widget.insert(tk.END, full_text + '\n', 'attack')
+        elif 'ICMP echo reply' in text:
+            widget.insert(tk.END, full_text + '\n', 'response')
+        elif 'ERROR' in text or 'failed' in text:
+            widget.insert(tk.END, full_text + '\n', 'error')
+        elif 'route' in text.lower() or 'via' in text or 'default' in text:
+            widget.insert(tk.END, full_text + '\n', 'route')
+        elif 'Packet sent successfully' in text or 'Sending' in text:
+            widget.insert(tk.END, full_text + '\n', 'success')
+        else:
+            widget.insert(tk.END, full_text + '\n')
+            
         widget.see(tk.END)
         
         # Limit widget size (keep last 1000 lines)
@@ -534,18 +603,51 @@ Available Scenarios:
         if len(lines) > 1000:
             widget.delete('1.0', f'{len(lines)-1000}.0')
             
+    def configure_text_tags(self, widget):
+        """Configure color tags for text widgets"""
+        widget.tag_configure('attack', foreground=self.colors['accent_red'], font=('Courier', 9, 'bold'))
+        widget.tag_configure('response', foreground=self.colors['accent_green'], font=('Courier', 9))
+        widget.tag_configure('error', foreground='#ff3333', font=('Courier', 9, 'bold'))
+        widget.tag_configure('route', foreground=self.colors['accent_yellow'], font=('Courier', 9, 'bold'))
+        widget.tag_configure('success', foreground=self.colors['accent_green'], font=('Courier', 9, 'bold'))
+            
     def update_status_display(self, status):
-        """Update status labels"""
+        """Update status labels with color coding"""
         if 'packets_sent' in status:
-            self.status_labels['Packets Sent:'].config(text=str(status['packets_sent']))
+            label = self.status_labels['Packets Sent:']
+            value = int(status['packets_sent'])
+            label.config(text=str(value))
+            if value > 0:
+                label.config(foreground=self.colors['accent_blue'])
+            
         if 'redirects_sent' in status:
-            self.status_labels['Redirects Sent:'].config(text=str(status['redirects_sent']))
+            label = self.status_labels['Redirects Sent:']
+            value = int(status['redirects_sent'])
+            label.config(text=str(value))
+            if value > 0:
+                label.config(foreground=self.colors['accent_blue'])
+                
         if 'route_changes' in status:
-            self.status_labels['Route Changes:'].config(text=str(status['route_changes']))
+            label = self.status_labels['Route Changes:']
+            value = int(status['route_changes'])
+            label.config(text=str(value))
+            if value > 0:
+                label.config(foreground=self.colors['accent_yellow'])
+                
         if 'duration' in status:
-            self.status_labels['Duration:'].config(text=status['duration'])
+            self.status_labels['Duration:'].config(text=status['duration'],
+                                                  foreground=self.colors['fg_primary'])
+            
         if 'status' in status:
-            self.status_labels['Status:'].config(text=status['status'])
+            label = self.status_labels['Status:']
+            value = status['status']
+            label.config(text=value)
+            if value == "Running":
+                label.config(foreground=self.colors['accent_green'])
+            elif value == "Idle":
+                label.config(foreground=self.colors['fg_secondary'])
+            elif value == "Error":
+                label.config(foreground=self.colors['accent_red'])
             
     def start_attack(self):
         """Start the selected attack"""
@@ -570,10 +672,12 @@ Available Scenarios:
             self.start_attacker_tcpdump()
             self.start_victim_routing_monitor()
             
-            # Build attack command
+            # Build attack command - use full paths
+            script_dir = os.path.dirname(os.path.abspath(__file__))
             if attack_type == 'spoof':
                 cmd = [
-                    'sudo', '/home/torr20/.local/bin/uv', 'run', 'icmp_spoofer_raw.py',
+                    'sudo', '/home/torr20/.local/bin/uv', 'run', 
+                    os.path.join(script_dir, 'icmp_spoofer_raw.py'),
                     target, '--source', source, '--duration', duration,
                     '--namespace', self.config['attacker_namespace']
                 ]
@@ -583,7 +687,8 @@ Available Scenarios:
                     cmd.append('--stealth')
             else:  # redirect
                 cmd = [
-                    'sudo', '/home/torr20/.local/bin/uv', 'run', 'icmp_redirect_raw.py',
+                    'sudo', '/home/torr20/.local/bin/uv', 'run', 
+                    os.path.join(script_dir, 'icmp_redirect_raw.py'),
                     target, source, self.config['gateway_ip'],
                     '--fake-gateway', self.config['attacker_ip'],
                     '--monitor-namespace', self.config['victim_namespace'],
@@ -782,15 +887,18 @@ Verification Commands Used:
     
     def setup_lab(self):
         """Setup lab environment"""
-        setup_script = """
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        namespace_script = os.path.join(script_dir, 'namespace_demo.py')
+        
+        setup_script = f"""
 # ICMP Attack Lab Setup
 echo "Setting up namespace lab environment..."
 echo "This will run the namespace setup script."
-python3 namespace_demo.py --setup-only
+python3 {namespace_script} --setup-only
 """
         messagebox.showinfo("Lab Setup", 
                            "This would run the namespace setup.\n"
-                           "Run 'python3 namespace_demo.py --setup-only' manually.")
+                           f"Run 'python3 {namespace_script} --setup-only' manually.")
     
     def save_results(self):
         """Save results to file"""

