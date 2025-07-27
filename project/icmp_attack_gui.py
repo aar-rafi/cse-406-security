@@ -68,10 +68,15 @@ class AttackMonitorGUI:
         self.config = get_config()
         self.scenarios = get_attack_scenarios()
         
+        # Initialize parameter variables first
+        self.init_parameter_variables()
+        
         # Attack state
         self.attack_running = False
         self.attack_process = None
+        self.traffic_process = None
         self.monitor_threads = []
+        self.tcpdump_processes = []
         self.output_queues = {
             'victim_tcpdump': queue.Queue(),
             'attacker_tcpdump': queue.Queue(),
@@ -259,36 +264,24 @@ class AttackMonitorGUI:
         self.attack_type = tk.StringVar(value="spoof")
         type_frame = ttk.Frame(config_panel)
         type_frame.grid(row=1, column=1, sticky='ew', padx=(10, 0), pady=5)
-        ttk.Radiobutton(type_frame, text="ICMP Spoofing", variable=self.attack_type, 
-                       value="spoof").pack(side='left', padx=5)
-        ttk.Radiobutton(type_frame, text="ICMP Redirect", variable=self.attack_type, 
-                       value="redirect").pack(side='left', padx=5)
+        spoof_radio = ttk.Radiobutton(type_frame, text="ICMP Spoofing", variable=self.attack_type, 
+                                     value="spoof", command=self.on_attack_type_change)
+        spoof_radio.pack(side='left', padx=5)
+        redirect_radio = ttk.Radiobutton(type_frame, text="ICMP Redirect", variable=self.attack_type, 
+                                        value="redirect", command=self.on_attack_type_change)
+        redirect_radio.pack(side='left', padx=5)
         
-        # Parameters
-        params_frame = ttk.LabelFrame(config_panel, text="Parameters", padding=5)
-        params_frame.grid(row=2, column=0, columnspan=2, sticky='ew', pady=10)
+        # Dynamic Parameters Frame
+        self.params_frame = ttk.LabelFrame(config_panel, text="Parameters", padding=5)
+        self.params_frame.grid(row=2, column=0, columnspan=2, sticky='ew', pady=10)
         
-        # Target IP
-        ttk.Label(params_frame, text="Target IP:").grid(row=0, column=0, sticky='w', pady=2)
-        self.target_ip = tk.StringVar(value=self.config['victim_ip'])
-        ttk.Entry(params_frame, textvariable=self.target_ip, width=15).grid(row=0, column=1, padx=5, pady=2)
+        # Configure grid weights for proper expansion
+        config_panel.grid_columnconfigure(1, weight=1)
+        self.params_frame.grid_columnconfigure(1, weight=1)
+        self.params_frame.grid_columnconfigure(3, weight=1)
         
-        # Source IP (for spoofing)
-        ttk.Label(params_frame, text="Source IP:").grid(row=0, column=2, sticky='w', pady=2)
-        self.source_ip = tk.StringVar(value=self.config['attacker_ip'])
-        ttk.Entry(params_frame, textvariable=self.source_ip, width=15).grid(row=0, column=3, padx=5, pady=2)
-        
-        # Duration
-        ttk.Label(params_frame, text="Duration (s):").grid(row=1, column=0, sticky='w', pady=2)
-        self.duration = tk.StringVar(value="30")
-        ttk.Entry(params_frame, textvariable=self.duration, width=10).grid(row=1, column=1, padx=5, pady=2)
-        
-        # Attack mode
-        ttk.Label(params_frame, text="Mode:").grid(row=1, column=2, sticky='w', pady=2)
-        self.attack_mode = tk.StringVar(value="single")
-        mode_combo = ttk.Combobox(params_frame, textvariable=self.attack_mode, width=12)
-        mode_combo['values'] = ['single', 'flood', 'stealth']
-        mode_combo.grid(row=1, column=3, padx=5, pady=2)
+        # Create dynamic parameter widgets
+        self.create_dynamic_parameters()
         
         # Control buttons
         control_frame = ttk.Frame(self.config_frame)
@@ -309,20 +302,12 @@ class AttackMonitorGUI:
                   command=self.setup_lab).pack(side='left', padx=5)
         
         # Help section
-        help_frame = ttk.LabelFrame(self.config_frame, text="Attack Mode Guide", padding=5)
+        help_frame = ttk.LabelFrame(self.config_frame, text="Parameter Guide", padding=5)
         help_frame.pack(fill='x', padx=20, pady=5)
         
-        help_text = """Attack Modes:
-• Single: Send one packet and stop
-• Flood: Send packets continuously (for spoofing) / continuous redirects (for redirect)
-• Stealth: Send random packets with delays (spoofing only)
-
-Attack Types:
-• ICMP Spoofing: Send ICMP packets with fake source IP
-• ICMP Redirect: Send ICMP redirect messages to change victim's routing table"""
-        
-        help_label = ttk.Label(help_frame, text=help_text, font=('Arial', 9), justify='left')
-        help_label.pack(anchor='w')
+        self.help_label = ttk.Label(help_frame, text="", font=('Arial', 9), justify='left')
+        self.help_label.pack(anchor='w')
+        self.update_help_text()
         
         # Configuration display
         self.config_display = scrolledtext.ScrolledText(self.config_frame, height=12, wrap=tk.WORD,
@@ -332,6 +317,159 @@ Attack Types:
         self.config_display.pack(fill='both', expand=True, padx=20, pady=10)
         self.update_config_display()
         
+    def init_parameter_variables(self):
+        """Initialize all parameter variables"""
+        # Common parameters
+        self.target_ip = tk.StringVar(value=self.config['victim_ip'])
+        self.source_ip = tk.StringVar(value=self.config['attacker_ip'])
+        self.duration = tk.StringVar(value="30")
+        self.attack_mode = tk.StringVar(value="single")
+        
+        # Spoofing-specific parameters
+        self.spoof_delay = tk.StringVar(value="0.01")
+        self.spoof_icmp_type = tk.StringVar(value="8")
+        self.spoof_icmp_code = tk.StringVar(value="0")
+        self.spoof_payload = tk.StringVar(value="")
+        
+        # Redirect-specific parameters
+        self.redirect_gateway = tk.StringVar(value=self.config['gateway_ip'])
+        self.redirect_fake_gateway = tk.StringVar(value=self.config['attacker_ip'])
+        
+        # Mode-specific flags
+        self.flood_mode = tk.BooleanVar(value=False)
+        self.stealth_mode = tk.BooleanVar(value=False)
+        self.continuous_mode = tk.BooleanVar(value=False)
+        self.generate_traffic = tk.BooleanVar(value=True)  # Default enabled for redirects
+        
+    def create_dynamic_parameters(self):
+        """Create parameter widgets that change based on attack type"""
+        # Clear existing widgets
+        for widget in self.params_frame.winfo_children():
+            widget.destroy()
+            
+        row = 0
+        
+        # Common parameters (always shown)
+        ttk.Label(self.params_frame, text="Target IP:").grid(row=row, column=0, sticky='w', pady=2)
+        ttk.Entry(self.params_frame, textvariable=self.target_ip, width=15).grid(row=row, column=1, padx=5, pady=2)
+        
+        ttk.Label(self.params_frame, text="Duration (s):").grid(row=row, column=2, sticky='w', pady=2)
+        ttk.Entry(self.params_frame, textvariable=self.duration, width=10).grid(row=row, column=3, padx=5, pady=2)
+        row += 1
+        
+        if self.attack_type.get() == "spoof":
+            self.create_spoofing_parameters(row)
+        else:
+            self.create_redirect_parameters(row)
+            
+    def create_spoofing_parameters(self, start_row):
+        """Create spoofing-specific parameters"""
+        row = start_row
+        
+        # Source IP
+        ttk.Label(self.params_frame, text="Source IP:").grid(row=row, column=0, sticky='w', pady=2)
+        ttk.Entry(self.params_frame, textvariable=self.source_ip, width=15).grid(row=row, column=1, padx=5, pady=2)
+        
+        # Delay
+        ttk.Label(self.params_frame, text="Delay (s):").grid(row=row, column=2, sticky='w', pady=2)
+        ttk.Entry(self.params_frame, textvariable=self.spoof_delay, width=10).grid(row=row, column=3, padx=5, pady=2)
+        row += 1
+        
+        # ICMP Type and Code
+        ttk.Label(self.params_frame, text="ICMP Type:").grid(row=row, column=0, sticky='w', pady=2)
+        icmp_type_combo = ttk.Combobox(self.params_frame, textvariable=self.spoof_icmp_type, width=12)
+        icmp_type_combo['values'] = ['8 (Echo Request)', '0 (Echo Reply)', '3 (Dest Unreachable)', '11 (Time Exceeded)']
+        icmp_type_combo.grid(row=row, column=1, padx=5, pady=2)
+        
+        ttk.Label(self.params_frame, text="ICMP Code:").grid(row=row, column=2, sticky='w', pady=2)
+        ttk.Entry(self.params_frame, textvariable=self.spoof_icmp_code, width=10).grid(row=row, column=3, padx=5, pady=2)
+        row += 1
+        
+        # Payload
+        ttk.Label(self.params_frame, text="Payload:").grid(row=row, column=0, sticky='w', pady=2)
+        ttk.Entry(self.params_frame, textvariable=self.spoof_payload, width=30).grid(row=row, column=1, columnspan=3, padx=5, pady=2, sticky='ew')
+        row += 1
+        
+        # Mode checkboxes
+        mode_frame = ttk.Frame(self.params_frame)
+        mode_frame.grid(row=row, column=0, columnspan=4, sticky='ew', pady=5)
+        
+        ttk.Checkbutton(mode_frame, text="Flood Mode", variable=self.flood_mode, 
+                       command=self.on_mode_change).pack(side='left', padx=5)
+        ttk.Checkbutton(mode_frame, text="Stealth Mode", variable=self.stealth_mode, 
+                       command=self.on_mode_change).pack(side='left', padx=5)
+        
+    def create_redirect_parameters(self, start_row):
+        """Create redirect-specific parameters"""
+        row = start_row
+        
+        # Victim IP (target in redirect context)
+        ttk.Label(self.params_frame, text="Victim IP:").grid(row=row, column=0, sticky='w', pady=2)
+        ttk.Entry(self.params_frame, textvariable=self.target_ip, width=15).grid(row=row, column=1, padx=5, pady=2)
+        
+        # Target IP (what victim tries to reach)
+        ttk.Label(self.params_frame, text="Target IP:").grid(row=row, column=2, sticky='w', pady=2)
+        ttk.Entry(self.params_frame, textvariable=self.source_ip, width=15).grid(row=row, column=3, padx=5, pady=2)
+        row += 1
+        
+        # Gateway IPs
+        ttk.Label(self.params_frame, text="Real Gateway:").grid(row=row, column=0, sticky='w', pady=2)
+        ttk.Entry(self.params_frame, textvariable=self.redirect_gateway, width=15).grid(row=row, column=1, padx=5, pady=2)
+        
+        ttk.Label(self.params_frame, text="Fake Gateway:").grid(row=row, column=2, sticky='w', pady=2)
+        ttk.Entry(self.params_frame, textvariable=self.redirect_fake_gateway, width=15).grid(row=row, column=3, padx=5, pady=2)
+        row += 1
+        
+        # Mode checkbox
+        mode_frame = ttk.Frame(self.params_frame)
+        mode_frame.grid(row=row, column=0, columnspan=4, sticky='ew', pady=5)
+        
+        ttk.Checkbutton(mode_frame, text="Continuous Mode", variable=self.continuous_mode).pack(side='left', padx=5)
+        ttk.Checkbutton(mode_frame, text="Generate Traffic", variable=self.generate_traffic).pack(side='left', padx=5)
+        
+    def on_attack_type_change(self):
+        """Handle attack type change"""
+        self.create_dynamic_parameters()
+        self.update_help_text()
+        self.update_config_display()
+        
+    def on_mode_change(self):
+        """Handle mode change for mutual exclusivity"""
+        if self.attack_type.get() == "spoof":
+            # Make flood and stealth mutually exclusive
+            if self.flood_mode.get() and self.stealth_mode.get():
+                # If both are checked, uncheck the other one
+                sender = self.params_frame.focus_get()
+                if "stealth" in str(sender):
+                    self.flood_mode.set(False)
+                else:
+                    self.stealth_mode.set(False)
+        self.update_config_display()
+        
+    def update_help_text(self):
+        """Update help text based on attack type"""
+        if self.attack_type.get() == "spoof":
+            help_text = """ICMP Spoofing Parameters:
+• Source IP: IP address to spoof (leave empty for random)
+• Delay: Time between packets in seconds (0.01 = 10ms)
+• ICMP Type: 8=Echo Request, 0=Echo Reply, 3=Dest Unreachable, 11=Time Exceeded
+• ICMP Code: Sub-type code (usually 0)
+• Payload: Custom data to include in ICMP packet
+• Flood Mode: Send packets as fast as possible
+• Stealth Mode: Random delays and sources for evasion"""
+        else:
+            help_text = """ICMP Redirect Parameters:
+• Victim IP: Target to redirect (victim machine)
+• Target IP: Destination the victim is trying to reach
+• Real Gateway: Current legitimate gateway IP
+• Fake Gateway: Malicious gateway to redirect to (usually attacker IP)
+• Continuous Mode: Keep sending redirects (vs single redirect)
+• Generate Traffic: Generate ping traffic to trigger redirect processing (RECOMMENDED)
+
+⚠️  IMPORTANT: ICMP redirects only work with active traffic to the target!"""
+            
+        self.help_label.config(text=help_text)
+    
     def create_monitoring_tab(self):
         """Create real-time monitoring tab"""
         self.monitoring_frame = ttk.Frame(self.notebook)
@@ -350,7 +488,7 @@ Attack Types:
         victim_frame.pack(fill='both', expand=True, pady=5)
         
         # Victim tcpdump
-        ttk.Label(victim_frame, text="Network Traffic:").pack(anchor='w')
+        ttk.Label(victim_frame, text=f"ICMP Traffic (sudo ip netns exec {self.config['victim_namespace']} tcpdump -i any icmp -nn):").pack(anchor='w')
         self.victim_tcpdump = scrolledtext.ScrolledText(victim_frame, height=8, width=50,
                                                       bg=self.colors['bg_light'],
                                                       fg=self.colors['victim_color'],
@@ -372,7 +510,7 @@ Attack Types:
         spoofer_net_frame.pack(fill='both', expand=True, pady=5)
         
         # Spoofer tcpdump
-        ttk.Label(spoofer_net_frame, text="Network Traffic:").pack(anchor='w')
+        ttk.Label(spoofer_net_frame, text=f"ICMP Traffic (sudo ip netns exec {self.config['attacker_namespace']} tcpdump -i any icmp -nn):").pack(anchor='w')
         self.attacker_tcpdump = scrolledtext.ScrolledText(spoofer_net_frame, height=6, width=50,
                                                         bg=self.colors['bg_light'],
                                                         fg=self.colors['spoofer_color'],
@@ -477,6 +615,10 @@ Attack Types:
                     self.attack_type.set('redirect')
                 else:
                     self.attack_type.set('spoof')
+                
+                # Recreate parameters for new attack type
+                self.create_dynamic_parameters()
+                self.update_help_text()
         
         self.update_config_display()
     
@@ -492,15 +634,34 @@ Network Setup:
 • Network: {self.config['network_subnet']}
 
 Attack Parameters:
-• Target IP: {self.target_ip.get()}
-• Source IP: {self.source_ip.get()}
 • Attack Type: {self.attack_type.get().upper()}
+• Target IP: {self.target_ip.get()}
 • Duration: {self.duration.get()} seconds
-• Mode: {self.attack_mode.get()}
-
-Available Scenarios:
 """
         
+        if self.attack_type.get() == "spoof":
+            config_text += f"""
+Spoofing Parameters:
+• Source IP: {self.source_ip.get() if self.source_ip.get().strip() else 'Random'}
+• ICMP Type: {self.spoof_icmp_type.get()}
+• ICMP Code: {self.spoof_icmp_code.get()}
+• Delay: {self.spoof_delay.get()} seconds
+• Payload: {self.spoof_payload.get() if self.spoof_payload.get().strip() else 'Default'}
+• Flood Mode: {'Enabled' if self.flood_mode.get() else 'Disabled'}
+• Stealth Mode: {'Enabled' if self.stealth_mode.get() else 'Disabled'}
+"""
+        else:
+            config_text += f"""
+Redirect Parameters:
+• Victim IP: {self.target_ip.get()}
+• Target IP: {self.source_ip.get()}
+• Real Gateway: {self.redirect_gateway.get()}
+• Fake Gateway: {self.redirect_fake_gateway.get()}
+• Continuous Mode: {'Enabled' if self.continuous_mode.get() else 'Disabled'}
+• Generate Traffic: {'Enabled' if self.generate_traffic.get() else 'Disabled'}
+"""
+        
+        config_text += "\nAvailable Scenarios:\n"
         for key, scenario in self.scenarios.items():
             config_text += f"• {key}: {scenario['name']}\n"
         
@@ -583,16 +744,42 @@ Available Scenarios:
         full_text = f"{timestamp} {text}"
         
         # Color code based on content
-        if 'ICMP echo request' in text or 'ICMP redirect' in text:
+        if '[DEBUG]' in text:
+            widget.insert(tk.END, full_text + '\n', 'debug')
+        elif '[VICTIM ERROR]' in text or '[ATTACKER ERROR]' in text:
+            widget.insert(tk.END, full_text + '\n', 'error')
+        elif '[VICTIM]' in text:
+            if 'echo request' in text:
+                widget.insert(tk.END, full_text + '\n', 'attack')
+            elif 'echo reply' in text:
+                widget.insert(tk.END, full_text + '\n', 'response')
+            elif 'redirect' in text:
+                widget.insert(tk.END, full_text + '\n', 'attack_redirect')
+            else:
+                widget.insert(tk.END, full_text + '\n', 'victim_traffic')
+        elif '[ATTACKER]' in text:
+            if 'echo request' in text:
+                widget.insert(tk.END, full_text + '\n', 'attack')
+            elif 'echo reply' in text:
+                widget.insert(tk.END, full_text + '\n', 'response')
+            elif 'redirect' in text:
+                widget.insert(tk.END, full_text + '\n', 'attack_redirect')
+            else:
+                widget.insert(tk.END, full_text + '\n', 'attacker_traffic')
+        elif 'ICMP echo request' in text or 'echo request' in text:
             widget.insert(tk.END, full_text + '\n', 'attack')
-        elif 'ICMP echo reply' in text:
+        elif 'ICMP redirect' in text or 'redirect' in text:
+            widget.insert(tk.END, full_text + '\n', 'attack_redirect')
+        elif 'ICMP echo reply' in text or 'echo reply' in text:
             widget.insert(tk.END, full_text + '\n', 'response')
-        elif 'ERROR' in text or 'failed' in text:
+        elif 'ERROR' in text or 'failed' in text or 'Error:' in text:
             widget.insert(tk.END, full_text + '\n', 'error')
         elif 'route' in text.lower() or 'via' in text or 'default' in text:
             widget.insert(tk.END, full_text + '\n', 'route')
         elif 'Packet sent successfully' in text or 'Sending' in text:
             widget.insert(tk.END, full_text + '\n', 'success')
+        elif 'tcpdump:' in text and ('packet' in text or 'listening' in text):
+            widget.insert(tk.END, full_text + '\n', 'stats')
         else:
             widget.insert(tk.END, full_text + '\n')
             
@@ -606,10 +793,15 @@ Available Scenarios:
     def configure_text_tags(self, widget):
         """Configure color tags for text widgets"""
         widget.tag_configure('attack', foreground=self.colors['accent_red'], font=('Courier', 9, 'bold'))
+        widget.tag_configure('attack_redirect', foreground='#ff4444', font=('Courier', 9, 'bold'))
         widget.tag_configure('response', foreground=self.colors['accent_green'], font=('Courier', 9))
         widget.tag_configure('error', foreground='#ff3333', font=('Courier', 9, 'bold'))
         widget.tag_configure('route', foreground=self.colors['accent_yellow'], font=('Courier', 9, 'bold'))
         widget.tag_configure('success', foreground=self.colors['accent_green'], font=('Courier', 9, 'bold'))
+        widget.tag_configure('stats', foreground=self.colors['accent_blue'], font=('Courier', 9, 'italic'))
+        widget.tag_configure('debug', foreground='#888888', font=('Courier', 9, 'italic'))
+        widget.tag_configure('victim_traffic', foreground=self.colors['victim_color'], font=('Courier', 9))
+        widget.tag_configure('attacker_traffic', foreground=self.colors['spoofer_color'], font=('Courier', 9))
             
     def update_status_display(self, status):
         """Update status labels with color coding"""
@@ -658,9 +850,7 @@ Available Scenarios:
         try:
             attack_type = self.attack_type.get()
             target = self.target_ip.get()
-            source = self.source_ip.get()
             duration = self.duration.get()
-            mode = self.attack_mode.get()
             
             self.attack_running = True
             self.start_button.config(state='disabled')
@@ -674,28 +864,61 @@ Available Scenarios:
             
             # Build attack command - use full paths
             script_dir = os.path.dirname(os.path.abspath(__file__))
+            
             if attack_type == 'spoof':
                 cmd = [
                     'sudo', '/home/torr20/.local/bin/uv', 'run', 
                     os.path.join(script_dir, 'icmp_spoofer_raw.py'),
-                    target, '--source', source, '--duration', duration,
+                    target, '--duration', duration,
                     '--namespace', self.config['attacker_namespace']
                 ]
-                if mode == 'flood':
+                
+                # Add spoofing-specific parameters
+                if self.source_ip.get().strip():
+                    cmd.extend(['--source', self.source_ip.get()])
+                
+                # Extract ICMP type number from combo box value
+                icmp_type_str = self.spoof_icmp_type.get()
+                if '(' in icmp_type_str:
+                    icmp_type = icmp_type_str.split()[0]  # Get number before space
+                else:
+                    icmp_type = icmp_type_str  # Use as-is if no parentheses
+                cmd.extend(['--type', icmp_type])
+                
+                cmd.extend(['--code', self.spoof_icmp_code.get()])
+                cmd.extend(['--delay', self.spoof_delay.get()])
+                
+                if self.spoof_payload.get().strip():
+                    cmd.extend(['--payload', self.spoof_payload.get()])
+                
+                # Add mode flags
+                if self.flood_mode.get():
                     cmd.append('--flood')
-                elif mode == 'stealth':
+                elif self.stealth_mode.get():
                     cmd.append('--stealth')
+                    
             else:  # redirect
                 cmd = [
                     'sudo', '/home/torr20/.local/bin/uv', 'run', 
                     os.path.join(script_dir, 'icmp_redirect_raw.py'),
-                    target, source, self.config['gateway_ip'],
-                    '--fake-gateway', self.config['attacker_ip'],
+                    target,  # victim_ip
+                    self.source_ip.get(),  # target_ip (what victim tries to reach)
+                    self.redirect_gateway.get(),  # gateway_ip
+                    '--fake-gateway', self.redirect_fake_gateway.get(),
                     '--monitor-namespace', self.config['victim_namespace'],
-                    '--duration', duration
+                    '--duration', duration,
+                    '--namespace', self.config['attacker_namespace']
                 ]
-                if mode == 'flood':  # For redirect, continuous mode is the default, flood means continuous
+                
+                if self.continuous_mode.get():
                     cmd.append('--continuous')
+                
+                # Start traffic generation if enabled (CRITICAL for modern Linux)
+                if self.generate_traffic.get():
+                    self.start_traffic_generation()
+                    self.output_queues['attack_output'].put("⚠️  CRITICAL: Traffic generation started - required for redirects to work on modern Linux!")
+                else:
+                    self.output_queues['attack_output'].put("⚠️  WARNING: No traffic generation - redirects likely to be ignored by victim kernel!")
             
             # Start attack process
             self.start_attack_process(cmd)
@@ -732,24 +955,65 @@ Available Scenarios:
         thread.start()
         self.monitor_threads.append(thread)
         
+    def start_traffic_generation(self):
+        """Start traffic generation to trigger redirect processing"""
+        def generate_traffic():
+            target_ip = self.source_ip.get()  # Target IP in redirect context
+            victim_namespace = self.config['victim_namespace']
+            
+            try:
+                # Use ping with short interval to generate steady traffic
+                cmd = ['sudo', 'ip', 'netns', 'exec', victim_namespace, 
+                       'ping', '-i', '0.5', target_ip]
+                
+                self.output_queues['attack_output'].put(
+                    f"Starting traffic generation to {target_ip} in {victim_namespace} namespace..."
+                )
+                
+                self.traffic_process = subprocess.Popen(
+                    cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+                )
+                
+                # Monitor for a bit to show traffic is working
+                timeout = 30  # Let it run for duration of attack
+                try:
+                    self.traffic_process.wait(timeout=timeout)
+                except subprocess.TimeoutExpired:
+                    pass  # This is expected - we want it to keep running
+                    
+            except Exception as e:
+                self.output_queues['attack_output'].put(f"Traffic generation error: {e}")
+        
+        thread = threading.Thread(target=generate_traffic)
+        thread.daemon = True
+        thread.start()
+        self.monitor_threads.append(thread)
+        
     def start_victim_tcpdump(self):
         """Start tcpdump monitoring for victim namespace"""
         def monitor_tcpdump():
             try:
                 cmd = ['sudo', 'ip', 'netns', 'exec', self.config['victim_namespace'],
-                       'tcpdump', '-i', 'any', 'icmp', '-nn', '-l']
+                       'tcpdump', '-i', 'any', 'icmp', '-nn']
+                
+                # Debug output
+                self.output_queues['victim_tcpdump'].put(f"[DEBUG] Starting victim tcpdump: {' '.join(cmd)}")
+                
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, 
-                                         stderr=subprocess.STDOUT, text=True)
+                                         stderr=subprocess.STDOUT, text=True, bufsize=1)
+                self.tcpdump_processes.append(('victim', process))
                 
                 for line in iter(process.stdout.readline, ''):
                     if not self.attack_running:
+                        process.terminate()
                         break
-                    self.output_queues['victim_tcpdump'].put(line.strip())
+                    if line.strip():
+                        self.output_queues['victim_tcpdump'].put(f"[VICTIM] {line.strip()}")
                     
             except Exception as e:
-                self.output_queues['victim_tcpdump'].put(f"Error: {e}")
+                self.output_queues['victim_tcpdump'].put(f"[VICTIM ERROR] {e}")
         
-        thread = threading.Thread(target=monitor_tcpdump)
+        thread = threading.Thread(target=monitor_tcpdump, name="VictimTcpdump")
         thread.daemon = True
         thread.start()
         self.monitor_threads.append(thread)
@@ -759,19 +1023,26 @@ Available Scenarios:
         def monitor_tcpdump():
             try:
                 cmd = ['sudo', 'ip', 'netns', 'exec', self.config['attacker_namespace'],
-                       'tcpdump', '-i', 'any', 'icmp', '-nn', '-l']
+                       'tcpdump', '-i', 'any', 'icmp', '-nn']
+                
+                # Debug output
+                self.output_queues['attacker_tcpdump'].put(f"[DEBUG] Starting attacker tcpdump: {' '.join(cmd)}")
+                
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, 
-                                         stderr=subprocess.STDOUT, text=True)
+                                         stderr=subprocess.STDOUT, text=True, bufsize=1)
+                self.tcpdump_processes.append(('attacker', process))
                 
                 for line in iter(process.stdout.readline, ''):
                     if not self.attack_running:
+                        process.terminate()
                         break
-                    self.output_queues['attacker_tcpdump'].put(line.strip())
+                    if line.strip():
+                        self.output_queues['attacker_tcpdump'].put(f"[ATTACKER] {line.strip()}")
                     
             except Exception as e:
-                self.output_queues['attacker_tcpdump'].put(f"Error: {e}")
+                self.output_queues['attacker_tcpdump'].put(f"[ATTACKER ERROR] {e}")
         
-        thread = threading.Thread(target=monitor_tcpdump)
+        thread = threading.Thread(target=monitor_tcpdump, name="AttackerTcpdump")
         thread.daemon = True
         thread.start()
         self.monitor_threads.append(thread)
@@ -800,6 +1071,7 @@ Available Scenarios:
         """Stop the current attack"""
         self.attack_running = False
         
+        # Stop attack process
         if self.attack_process:
             try:
                 self.attack_process.terminate()
@@ -807,6 +1079,28 @@ Available Scenarios:
             except subprocess.TimeoutExpired:
                 self.attack_process.kill()
             self.attack_process = None
+            
+        # Stop traffic generation process
+        if self.traffic_process:
+            try:
+                self.traffic_process.terminate()
+                self.traffic_process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                self.traffic_process.kill()
+            except Exception as e:
+                print(f"Error stopping traffic generation: {e}")
+            self.traffic_process = None
+        
+        # Stop all tcpdump processes
+        for name, process in self.tcpdump_processes:
+            try:
+                process.terminate()
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.kill()
+            except Exception as e:
+                print(f"Error stopping {name} tcpdump: {e}")
+        self.tcpdump_processes.clear()
             
         self.start_button.config(state='normal')
         self.stop_button.config(state='disabled')

